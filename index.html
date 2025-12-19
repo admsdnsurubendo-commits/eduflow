@@ -3,34 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduFlow Dasis Engine - INISIAL TH</title>
-    <!-- Tailwind CSS untuk Styling -->
+    <title>EduFlow Dasis Engine - GAS Bridge</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        body { 
-            background-color: #f8fafc; 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-        }
-        .text-left { text-align: left; }
+        body { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; text-align: left; }
         .admin-hidden-trigger { opacity: 0.1; transition: opacity 0.3s; }
         .admin-hidden-trigger:hover { opacity: 1; }
         .fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-spin-custom { animation: spin 1s linear infinite; }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -39,18 +24,12 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const DEFAULT_MASTER_PASSWORD = 'admin123'; 
-
-        // Komponen Ikon Aman
         const Icon = ({ name, className = "w-5 h-5", animate = false }) => {
             const iconRef = useRef(null);
             useEffect(() => {
                 if (iconRef.current && window.lucide) {
-                    iconRef.current.innerHTML = `<i data-lucide="${name}" class="${className} ${animate ? 'animate-spin-custom' : ''}"></i>`;
-                    window.lucide.createIcons({
-                        attrs: { class: `${className} ${animate ? 'animate-spin-custom' : ''}` },
-                        nameAttr: 'data-lucide'
-                    });
+                    iconRef.current.innerHTML = `<i data-lucide="${name}" class="${className} ${animate ? 'animate-spin' : ''}"></i>`;
+                    window.lucide.createIcons({ nameAttr: 'data-lucide' });
                 }
             }, [name, className, animate]);
             return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
@@ -58,344 +37,175 @@
 
         const Notification = ({ type, message }) => (
             <div className={`fixed top-4 right-4 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 border fade-in ${
-                type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
-                type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-                'bg-blue-50 border-blue-200 text-blue-800'
+                type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
             }`}>
-                <Icon name={type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'alert-circle'} />
-                <p className="text-sm font-bold text-left">{message}</p>
+                <Icon name={type === 'success' ? 'check-circle' : 'x-circle'} />
+                <p className="text-sm font-bold">{message}</p>
             </div>
         );
 
-        const FileUploadCard = ({ label, iconName, iconColor, file, onChange }) => (
-            <div className="relative group h-40">
-                <div className={`p-4 rounded-3xl border-2 border-dashed transition-all h-full flex flex-col items-center justify-center text-center ${file ? 'border-emerald-200 bg-emerald-50 shadow-inner' : 'border-slate-200 bg-white group-hover:bg-blue-50/50'}`}>
-                    <div className={`mb-3 p-3 bg-white rounded-2xl shadow-sm ${iconColor}`}>
-                        <Icon name={iconName} className="w-6 h-6" />
-                    </div>
+        const FileUploadCard = ({ label, iconName, file, onChange }) => (
+            <div className="relative group h-36">
+                <div className={`p-4 rounded-3xl border-2 border-dashed transition-all h-full flex flex-col items-center justify-center text-center ${file ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white group-hover:bg-blue-50/50'}`}>
+                    <Icon name={iconName} className={`w-8 h-8 mb-2 ${file ? 'text-emerald-500' : 'text-slate-300'}`} />
                     <p className="text-[10px] font-black text-slate-700 uppercase tracking-tighter mb-1 leading-tight">{label}</p>
-                    <p className="text-[9px] text-slate-400 truncate w-full px-4 italic">{file ? file.name : 'Pilih Foto'}</p>
-                    <input type="file" accept="image/*" onChange={onChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    <p className="text-[9px] text-slate-400 truncate w-full px-4 italic">{file ? file.name : "Pilih File"}</p>
+                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={onChange} />
                 </div>
             </div>
         );
 
         const App = () => {
-            const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [adminPasswordInput, setAdminPasswordInput] = useState('');
-            const [view, setView] = useState('student'); 
+            const [view, setView] = useState('student');
             const [isProcessing, setIsProcessing] = useState(false);
-            const [step, setStep] = useState(0); 
             const [notification, setNotification] = useState(null);
-            const [googleToken, setGoogleToken] = useState(null);
+            const [adminPass, setAdminPass] = useState('');
+            const [studentData, setStudentData] = useState({ nama: '', kk: null, akte: null, pip: null });
             
             const [config, setConfig] = useState(() => {
-                const saved = localStorage.getItem('eduflow_config_v2025_final');
-                return saved ? JSON.parse(saved) : {
-                    apiKey: '',
-                    clientId: '',
-                    folderId: '',
-                    spreadsheetId: '',
-                    masterPassword: DEFAULT_MASTER_PASSWORD
-                };
+                const saved = localStorage.getItem('eduflow_gas_config');
+                return saved ? JSON.parse(saved) : { gasUrl: '', masterPassword: 'admin123' };
             });
-
-            const [studentData, setStudentData] = useState({ nama: '', kk: null, akte: null, pip: null });
-            const [logs, setLogs] = useState([]);
-
-            // OAuth Callback Handler
-            useEffect(() => {
-                const hash = window.location.hash;
-                if (hash) {
-                    const params = new URLSearchParams(hash.replace('#', '?'));
-                    const token = params.get('access_token');
-                    const error = params.get('error');
-
-                    if (token) {
-                        setGoogleToken(token);
-                        localStorage.setItem('g_access_token', token);
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        showNotify('success', 'Akun Google Berhasil Terhubung!');
-                        setView('settings');
-                    } else if (error) {
-                        showNotify('error', 'Gagal menghubungkan akun: ' + error);
-                    }
-                } else {
-                    const savedToken = localStorage.getItem('g_access_token');
-                    if (savedToken) setGoogleToken(savedToken);
-                }
-            }, []);
 
             const showNotify = (type, message) => {
                 setNotification({ type, message });
                 setTimeout(() => setNotification(null), 5000);
             };
 
-            // Fungsi untuk memulai proses OAuth
-            const handleGoogleAuth = () => {
-                if (!config.clientId) return showNotify('error', 'Isi Client ID terlebih dahulu di menu Settings.');
-                
-                const redirectUri = window.location.origin + window.location.pathname;
-                const scope = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-                
-                const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
-                                `client_id=${config.clientId}&` +
-                                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-                                `response_type=token&` +
-                                `scope=${encodeURIComponent(scope)}`;
-                
-                window.location.assign(authUrl);
-            };
-
-            const uploadFile = async (file, prefix) => {
-                const metadata = { name: `${prefix}_${studentData.nama}_${Date.now()}.jpg`, parents: [config.folderId] };
-                const formData = new FormData();
-                formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                formData.append('file', file);
-                const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=webViewLink', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${googleToken}` },
-                    body: formData
+            const convertToBase64 = (file) => {
+                if (!file) return null;
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = error => reject(error);
                 });
-                if (!res.ok) throw new Error('Gagal Upload ke Google Drive. Cek izin folder.');
-                return await res.json();
-            };
-
-            const performOCR = async (file) => {
-                const reader = new FileReader();
-                const base64 = await new Promise(r => { reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(file); });
-                const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${config.apiKey}`, {
-                    method: 'POST',
-                    body: JSON.stringify({ requests: [{ image: { content: base64 }, features: [{ type: 'TEXT_DETECTION' }] }] })
-                });
-                const data = await res.json();
-                if (data.error) throw new Error('Google Vision Error: ' + data.error.message);
-                return data.responses[0]?.fullTextAnnotation?.text || 'Teks tidak terbaca.';
-            };
-
-            const appendSheet = async (values) => {
-                const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/Sheet1:append?valueInputOption=USER_ENTERED`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${googleToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ values: [values] })
-                });
-                if (!res.ok) throw new Error('Gagal menulis ke Google Sheets.');
             };
 
             const runAutomation = async (e) => {
                 e.preventDefault();
-                if (!googleToken) return showNotify('error', 'Admin harus menghubungkan akun Google di menu Settings.');
-                if (!studentData.nama || !studentData.kk) return showNotify('error', 'Lengkapi Nama & Foto KK.');
+                if (!config.gasUrl) return showNotify('error', 'Konfigurasi belum diatur Admin.');
+                if (!studentData.nama || !studentData.kk || !studentData.akte || !studentData.pip) {
+                    return showNotify('error', 'Wajib melengkapi Nama dan 3 Foto dokumen.');
+                }
 
                 setIsProcessing(true);
                 try {
-                    setStep(1); 
-                    const driveRes = await uploadFile(studentData.kk, 'KK');
-                    
-                    setStep(2); 
-                    const ocrTeks = await performOCR(studentData.kk);
-                    
-                    setStep(3); 
-                    const timestamp = new Date().toLocaleString('id-ID');
-                    await appendSheet([timestamp, studentData.nama, 'KK', ocrTeks.substring(0, 1000), driveRes.webViewLink]);
+                    const [b64KK, b64Akte, b64PIP] = await Promise.all([
+                        convertToBase64(studentData.kk),
+                        convertToBase64(studentData.akte),
+                        convertToBase64(studentData.pip)
+                    ]);
 
-                    setLogs(prev => [{ id: Date.now(), nama: studentData.nama, status: 'Berhasil', waktu: timestamp }, ...prev]);
-                    showNotify('success', 'Data berhasil diproses sepenuhnya!');
+                    const payload = {
+                        nama_siswa: studentData.nama,
+                        foto_kk: b64KK,
+                        foto_akte: b64Akte,
+                        foto_pip: b64PIP
+                    };
+
+                    await fetch(config.gasUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    showNotify('success', 'Semua berkas berhasil dikirim ke Cloud!');
                     setStudentData({ nama: '', kk: null, akte: null, pip: null });
                 } catch (err) {
-                    showNotify('error', err.message);
+                    showNotify('error', 'Gagal: ' + err.message);
                 } finally {
                     setIsProcessing(false);
-                    setStep(0);
                 }
             };
 
             const handleLogin = (e) => {
                 e.preventDefault();
-                if (adminPasswordInput === config.masterPassword) {
-                    setIsAuthenticated(true);
+                if (adminPass === config.masterPassword) {
                     setView('admin');
-                    showNotify('success', 'Selamat Datang, Admin.');
+                    setAdminPass('');
                 } else {
-                    showNotify('error', 'Sandi Salah.');
+                    showNotify('error', 'Sandi Salah!');
                 }
             };
 
             return (
-                <div className="min-h-screen text-slate-800 flex flex-col">
+                <div className="min-h-screen flex flex-col">
                     {notification && <Notification {...notification} />}
 
-                    <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+                    <nav className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
                         <div className="flex items-center gap-3">
-                            <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-xl shadow-blue-200">
-                                <Icon name="zap" />
-                            </div>
-                            <div className="text-left leading-tight">
-                                <h1 className="font-extrabold text-xl tracking-tight text-slate-900">EduFlow Dasis</h1>
-                                <p className="text-[9px] text-slate-400 uppercase tracking-[0.2em] font-bold italic mt-1">Siswa Portal</p>
-                            </div>
+                            <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-100"><Icon name="zap" /></div>
+                            <div className="text-left leading-none"><h1 className="font-extrabold text-xl">EduFlow Dasis</h1><p className="text-[9px] uppercase font-bold text-slate-400 mt-1 italic tracking-widest">Digital Archive System</p></div>
                         </div>
-
-                        {isAuthenticated && (
-                            <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
-                                <button onClick={() => setView('admin')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}>Dashboard</button>
-                                <button onClick={() => setView('settings')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${view === 'settings' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}>Settings</button>
-                                <button onClick={() => {setIsAuthenticated(false); setView('student');}} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"><Icon name="power" className="w-4 h-4" /></button>
-                            </div>
-                        )}
                     </nav>
 
-                    <main className="max-w-6xl mx-auto p-6 md:p-10 flex-grow w-full">
-                        {view === 'login' && !isAuthenticated && (
-                            <div className="max-w-sm mx-auto mt-20 bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-100 border border-slate-100 text-center fade-in">
-                                <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-8 text-white shadow-xl"><Icon name="shield-check" className="w-10 h-10 text-blue-400" /></div>
-                                <h2 className="text-2xl font-black mb-2 text-slate-900">Akses Staf</h2>
-                                <p className="text-slate-400 text-xs mb-8 font-semibold uppercase tracking-wide">Autentikasi Terbatas</p>
-                                <form onSubmit={handleLogin} className="space-y-4">
-                                    <input type="password" placeholder="Sandi Admin" className="w-full px-6 py-5 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-100 transition-all text-center font-bold text-lg" value={adminPasswordInput} onChange={(e)=>setAdminPasswordInput(e.target.value)} autoFocus />
-                                    <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl hover:bg-black transition-all uppercase tracking-widest text-xs">MASUK SISTEM</button>
-                                    <button type="button" onClick={()=>setView('student')} className="w-full text-slate-400 text-[10px] font-bold uppercase py-2">Batal & Kembali</button>
+                    <main className="max-w-5xl mx-auto p-6 md:p-10 flex-grow w-full">
+                        {view === 'student' && (
+                            <div className="bg-white p-8 md:p-14 rounded-[3rem] border border-slate-100 shadow-2xl fade-in text-left">
+                                <div className="flex items-center gap-4 mb-10 pb-6 border-b border-slate-50">
+                                    <div className="bg-blue-50 p-4 rounded-3xl text-blue-600"><Icon name="file-up" className="w-8 h-8" /></div>
+                                    <div><h2 className="text-3xl font-black text-slate-900">Portal Berkas</h2><p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Lengkapi identitas dan 3 foto berkas asli</p></div>
+                                </div>
+
+                                <form onSubmit={runAutomation} className="space-y-10">
+                                    <div className="space-y-4">
+                                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block ml-2">Nama Lengkap Siswa</label>
+                                        <input type="text" className="w-full px-8 py-6 rounded-3xl border border-slate-100 outline-none text-2xl font-bold bg-slate-50 focus:ring-8 focus:ring-blue-50 transition-all shadow-inner" placeholder="Contoh: Andi Pratama" value={studentData.nama} onChange={(e)=>setStudentData({...studentData, nama:e.target.value})} />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <FileUploadCard label="Kartu Keluarga" iconName="users" file={studentData.kk} onChange={(e)=>setStudentData({...studentData, kk:e.target.files[0]})} />
+                                        <FileUploadCard label="Akte Kelahiran" iconName="award" file={studentData.akte} onChange={(e)=>setStudentData({...studentData, akte:e.target.files[0]})} />
+                                        <FileUploadCard label="Rekening PIP" iconName="landmark" file={studentData.pip} onChange={(e)=>setStudentData({...studentData, pip:e.target.files[0]})} />
+                                    </div>
+
+                                    <button disabled={isProcessing} className={`w-full py-7 rounded-[2.5rem] font-black text-white shadow-2xl transition-all flex justify-center items-center gap-5 text-2xl ${isProcessing ? 'bg-slate-300' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}>
+                                        {isProcessing ? <Icon name="loader-2" animate={true} className="w-8 h-8" /> : <Icon name="send" className="w-8 h-8" />}
+                                        {isProcessing ? 'SEDANG MENGIRIM...' : 'KIRIM SEMUA BERKAS'}
+                                    </button>
                                 </form>
                             </div>
                         )}
 
-                        {view === 'student' && (
-                            <div className="grid lg:grid-cols-12 gap-10 items-start fade-in">
-                                <div className="lg:col-span-8 bg-white p-8 md:p-14 rounded-[3rem] border border-slate-100 shadow-2xl">
-                                    <div className="flex items-center gap-5 mb-12 text-left border-b border-slate-50 pb-8">
-                                        <div className="bg-blue-600 p-4 rounded-3xl text-white shadow-xl"><Icon name="file-up" className="w-8 h-8" /></div>
-                                        <div><h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Pengumpulan Dokumen</h2><p className="text-slate-400 font-bold uppercase text-[11px] mt-2">Mesin Otomasi Digital 2025</p></div>
-                                    </div>
-                                    <form onSubmit={runAutomation} className="space-y-12 text-left">
-                                        <div className="space-y-4">
-                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-2 block leading-none">Nama Lengkap Siswa</label>
-                                            <input type="text" className="w-full px-8 py-6 rounded-3xl border border-slate-100 outline-none text-2xl font-bold focus:ring-8 focus:ring-blue-50 transition-all bg-slate-50 shadow-inner" placeholder="Sesuai Ijazah..." value={studentData.nama} onChange={(e)=>setStudentData({...studentData, nama:e.target.value})} />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                            <FileUploadCard label="Foto KK" iconName="users" iconColor="text-blue-500" file={studentData.kk} onChange={(e)=>setStudentData({...studentData, kk:e.target.files[0]})} />
-                                            <FileUploadCard label="Akte Lahir" iconName="award" iconColor="text-emerald-500" file={studentData.akte} onChange={(e)=>setStudentData({...studentData, akte:e.target.files[0]})} />
-                                            <FileUploadCard label="Buku PIP" iconName="landmark" iconColor="text-amber-500" file={studentData.pip} onChange={(e)=>setStudentData({...studentData, pip:e.target.files[0]})} />
-                                        </div>
-                                        <button disabled={isProcessing} className={`w-full py-7 rounded-[2.5rem] font-black text-white shadow-2xl transition-all flex justify-center items-center gap-5 text-2xl ${isProcessing ? 'bg-slate-300' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}>
-                                            {isProcessing ? <Icon name="loader-2" animate={true} className="w-8 h-8" /> : <Icon name="zap" className="w-8 h-8" />}
-                                            {isProcessing ? 'MEMINDAI DATA...' : 'KIRIM BERKAS SEKARANG'}
-                                        </button>
-                                    </form>
-                                </div>
-                                <div className="lg:col-span-4 bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden h-full">
-                                    <h3 className="font-black text-xl mb-12 border-b border-white/10 pb-6 text-left tracking-tight flex items-center gap-3"><Icon name="cpu" className="text-blue-400 w-6 h-6" /> Status Operasi</h3>
-                                    <div className="space-y-10 relative z-10 text-left">
-                                        <Step active={step >= 1} current={step === 1} label="Cloud Upload" desc="Drive Storage" />
-                                        <Step active={step >= 2} current={step === 2} label="OCR Scanning" desc="Vision AI Processing" />
-                                        <Step active={step >= 3} current={step === 3} label="Database Sync" desc="Reporting Result" />
-                                    </div>
-                                </div>
+                        {view === 'login' && (
+                            <div className="max-w-sm mx-auto bg-white p-10 rounded-[3rem] shadow-2xl border border-slate-100 text-center fade-in">
+                                <Icon name="lock" className="w-12 h-12 text-blue-600 mb-6" />
+                                <h2 className="text-2xl font-black mb-6">Akses Staf</h2>
+                                <form onSubmit={handleLogin} className="space-y-4 text-left">
+                                    <input type="password" placeholder="Sandi Admin" className="w-full p-5 rounded-2xl border bg-slate-50 text-center font-bold text-lg outline-none focus:ring-4 focus:ring-blue-100" value={adminPass} onChange={(e)=>setAdminPass(e.target.value)} autoFocus />
+                                    <button className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl">Login Sistem</button>
+                                    <button type="button" onClick={()=>setView('student')} className="w-full text-[10px] text-slate-400 font-bold uppercase py-2">Kembali</button>
+                                </form>
                             </div>
                         )}
 
-                        {view === 'admin' && isAuthenticated && (
-                            <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl fade-in text-left">
-                                <div className="p-12 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6">
-                                    <div className="text-left">
-                                        <h2 className="text-3xl font-black text-slate-900 leading-tight">Database Digital</h2>
-                                        <p className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.2em] mt-3 tracking-widest italic">Log Pemindaian Terbaru</p>
+                        {view === 'admin' && (
+                            <div className="max-w-2xl mx-auto bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 text-left fade-in">
+                                <h2 className="text-2xl font-black mb-8 flex items-center gap-4"><Icon name="settings" className="w-8 h-8" /> Konfigurasi Cloud</h2>
+                                <div className="space-y-8">
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">GAS Web App URL (Production)</label>
+                                        <input type="text" className="w-full p-5 rounded-2xl border bg-slate-50 text-xs font-mono text-blue-600 outline-none focus:ring-4 focus:ring-blue-100 shadow-inner" placeholder="https://script.google.com/macros/s/.../exec" value={config.gasUrl} onChange={(e)=>setConfig({...config, gasUrl: e.target.value})} />
                                     </div>
-                                    <a href={`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}`} target="_blank" className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs hover:bg-emerald-700 flex items-center gap-3 transition-all"><Icon name="external-link" className="w-4 h-4" /> BUKA DATABASE UTAMA</a>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em]">
-                                            <tr><th className="px-12 py-7">Siswa</th><th className="px-12 py-7">Status</th><th className="px-12 py-7">Waktu Sinkron</th></tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50">
-                                            {logs.length > 0 ? logs.map(log => (
-                                                <tr key={log.id} className="hover:bg-slate-50/50 transition-all">
-                                                    <td className="px-12 py-7 font-extrabold text-slate-700 text-lg">{log.nama}</td>
-                                                    <td className="px-12 py-7"><div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest"><Icon name="check-circle" className="w-3.5 h-3.5" /> Selesai</div></td>
-                                                    <td className="px-12 py-7 text-slate-400 font-bold text-xs">{log.waktu}</td>
-                                                </tr>
-                                            )) : <tr><td colSpan="3" className="px-12 py-20 text-center text-slate-300 font-bold italic uppercase tracking-widest text-xs">Belum ada data masuk.</td></tr>}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'settings' && isAuthenticated && (
-                            <div className="max-w-3xl mx-auto bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 fade-in text-left">
-                                <h2 className="text-3xl font-black text-slate-900 mb-10 flex items-center gap-4"><Icon name="settings-2" className="w-8 h-8" /> Konfigurasi Cloud</h2>
-                                
-                                <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-3xl space-y-4">
-                                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                                        <div className="text-left">
-                                            <p className="font-bold text-blue-900 uppercase text-xs tracking-widest">Koneksi Google Cloud</p>
-                                            <p className="text-[10px] text-blue-700 font-medium italic">Wajib terhubung agar fitur upload & database aktif.</p>
-                                        </div>
-                                        <button onClick={handleGoogleAuth} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs flex items-center gap-2 hover:bg-blue-700 transition-all">
-                                            <Icon name="refresh-cw" className="w-4 h-4" animate={!googleToken} />
-                                            {googleToken ? 'AKUN TERHUBUNG' : 'HUBUNGKAN AKUN'}
-                                        </button>
+                                    <div className="pt-6 border-t">
+                                        <label className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1 block mb-3">Ganti Sandi Panel</label>
+                                        <input type="text" className="w-full p-5 rounded-2xl border bg-slate-50 text-sm font-bold outline-none focus:ring-4 focus:ring-blue-100 shadow-inner" value={config.masterPassword} onChange={(e)=>setConfig({...config, masterPassword: e.target.value})} />
                                     </div>
-                                    
-                                    {/* INFO WHITELIST UNTUK MEMPERBAIKI AKSES DIBLOKIR */}
-                                    <div className="p-4 bg-white/50 rounded-2xl border border-blue-100">
-                                        <p className="text-[10px] font-bold text-blue-800 mb-2 uppercase tracking-tight flex items-center gap-1">
-                                            <Icon name="info" className="w-3 h-3" /> Solusi "Akses Diblokir"
-                                        </p>
-                                        <p className="text-[10px] text-slate-600 leading-relaxed">
-                                            Pastikan URL berikut sudah didaftarkan pada Google Cloud Console Anda di bagian <b>Authorized Redirect URIs</b>:
-                                        </p>
-                                        <code className="block mt-2 p-2 bg-slate-100 rounded text-[10px] break-all font-mono text-blue-700 select-all border border-slate-200">
-                                            {window.location.origin + window.location.pathname}
-                                        </code>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-8 text-left">
-                                    <ConfigInput label="Google Vision API Key" value={config.apiKey} onChange={(val)=>setConfig({...config, apiKey: val})} />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <ConfigInput label="Google Drive Folder ID" value={config.folderId} onChange={(val)=>setConfig({...config, folderId: val})} />
-                                        <ConfigInput label="Spreadsheet ID" value={config.spreadsheetId} onChange={(val)=>setConfig({...config, spreadsheetId: val})} />
-                                    </div>
-                                    <ConfigInput label="OAuth Client ID" value={config.clientId} onChange={(val)=>setConfig({...config, clientId: val})} />
-                                    <div className="pt-8 border-t border-slate-100 space-y-4 text-left">
-                                        <label className="text-[11px] font-black text-blue-600 uppercase tracking-widest block">🔒 Password Admin (Keamanan)</label>
-                                        <input type="text" className="w-full px-6 py-5 rounded-2xl border border-blue-100 outline-none text-lg font-bold bg-blue-50 focus:ring-8 focus:ring-blue-100 transition-all text-blue-800" value={config.masterPassword} onChange={(e)=>setConfig({...config, masterPassword: e.target.value})} />
-                                    </div>
-                                    <button onClick={()=>{localStorage.setItem('eduflow_config_v2025_final', JSON.stringify(config)); showNotify('success', 'Konfigurasi Disimpan Permanen!');}} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3 text-sm mt-4"><Icon name="save" className="w-5 h-5" /> SIMPAN PERUBAHAN</button>
+                                    <button onClick={()=>{localStorage.setItem('eduflow_gas_config', JSON.stringify(config)); showNotify('success', 'Konfigurasi 3 Dokumen Diaktifkan!'); setView('student');}} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase text-sm tracking-[0.3em] shadow-2xl hover:bg-black transition-all">SIMPAN & UPDATE MESIN</button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    <footer className="py-12 border-t border-slate-100 bg-white/50">
-                        <div className="max-w-6xl mx-auto px-6 flex justify-between items-center">
-                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-[0.4em]">&copy; 2025 EDUFLOW by INISIAL TH</p>
-                            <button onClick={()=>!isAuthenticated && setView('login')} className="admin-hidden-trigger text-slate-900 text-[10px] font-black uppercase tracking-widest hover:text-blue-600">{isAuthenticated ? 'SISTEM AKTIF' : 'STAF SAJA'}</button>
-                        </div>
+                    <footer className="py-12 border-t border-slate-100 bg-white/50 flex justify-between items-center px-10">
+                        <p className="text-black text-[10px] font-black uppercase tracking-[0.4em]">&copy; 2025 EDUFLOW by INISIAL TH</p>
+                        <button onClick={()=>setView(view === 'student' ? 'login' : 'student')} className="admin-hidden-trigger text-black text-[10px] font-black uppercase tracking-widest hover:text-blue-600 transition-all">STAF SAJA</button>
                     </footer>
                 </div>
             );
         };
-
-        const ConfigInput = ({ label, value, onChange }) => (
-            <div className="text-left">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1 text-left">{label}</label>
-                <input type="text" className="w-full px-6 py-5 rounded-2xl border border-slate-100 outline-none text-sm font-mono bg-white focus:ring-4 focus:ring-slate-50 transition-all shadow-sm" value={value} onChange={(e)=>onChange(e.target.value)} />
-            </div>
-        );
-
-        const Step = ({ active, current, label, desc }) => (
-            <div className={`flex items-start gap-6 transition-all duration-700 text-left ${active ? 'opacity-100 translate-x-0' : 'opacity-20 -translate-x-4'}`}>
-                <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center flex-shrink-0 transition-all shadow-2xl ${current ? 'bg-yellow-400 animate-pulse ring-8 ring-yellow-400/20 shadow-yellow-400/30' : active ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-800'}`}>
-                    {active && !current ? <Icon name="check" className="w-6 h-6 text-white" /> : <div className="w-2.5 h-2.5 bg-white/30 rounded-full"></div>}
-                </div>
-                <div className="flex flex-col text-left justify-center h-12">
-                    <span className={`text-lg font-extrabold tracking-tight leading-none ${current ? 'text-yellow-400' : 'text-white'}`}>{label}</span>
-                    <span className="text-[11px] text-white/30 font-black uppercase tracking-widest mt-2 leading-none">{desc}</span>
-                </div>
-            </div>
-        );
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
