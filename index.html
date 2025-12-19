@@ -6,45 +6,85 @@
     <title>EduFlow Dasis Engine - INISIAL TH</title>
     <!-- Tailwind CSS untuk Styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & Babel untuk menjalankan JSX langsung di Browser -->
+    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         body { 
             background-color: #f8fafc; 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
         }
         .text-left { text-align: left; }
+        .admin-hidden-trigger { opacity: 0.05; transition: opacity 0.3s; }
+        .admin-hidden-trigger:hover { opacity: 1; }
+        /* Animasi masuk yang halus */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Style khusus untuk loader agar berputar */
+        .animate-spin-custom {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // Komponen Notifikasi (Toast)
+        // ==========================================
+        // KONFIGURASI KEAMANAN UTAMA
+        const DEFAULT_MASTER_PASSWORD = 'admin123'; 
+        // ==========================================
+
+        // Komponen Ikon yang Aman (Mencegah removeChild & toSvg error)
+        const Icon = ({ name, className = "w-5 h-5", animate = false }) => {
+            const iconRef = useRef(null);
+
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    // Bersihkan container dan buat elemen i baru
+                    iconRef.current.innerHTML = `<i data-lucide="${name}" class="${className} ${animate ? 'animate-spin-custom' : ''}"></i>`;
+                    // Jalankan parser lucide hanya pada elemen ini
+                    window.lucide.createIcons({
+                        attrs: { class: `${className} ${animate ? 'animate-spin-custom' : ''}` },
+                        nameAttr: 'data-lucide'
+                    });
+                }
+            }, [name, className, animate]);
+
+            return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
+        };
+
         const Notification = ({ type, message }) => (
-            <div className={`fixed top-4 right-4 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 border animate-bounce ${
+            <div className={`fixed top-4 right-4 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 border fade-in ${
                 type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
                 type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
                 'bg-blue-50 border-blue-200 text-blue-800'
             }`}>
-                <i data-lucide={type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'alert-circle'} className="w-5 h-5"></i>
-                <p className="text-sm font-semibold">{message}</p>
+                <Icon name={type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'alert-circle'} />
+                <p className="text-sm font-bold">{message}</p>
             </div>
         );
 
-        // Komponen Card Upload
         const FileUploadCard = ({ label, iconName, iconColor, file, onChange }) => (
             <div className="relative group h-40">
-                <div className={`p-4 rounded-3xl border-2 border-dashed transition-all h-full flex flex-col items-center justify-center text-center ${file ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white group-hover:bg-blue-50/50'}`}>
+                <div className={`p-4 rounded-3xl border-2 border-dashed transition-all h-full flex flex-col items-center justify-center text-center ${file ? 'border-emerald-200 bg-emerald-50 shadow-inner' : 'border-slate-200 bg-white group-hover:bg-blue-50/50'}`}>
                     <div className={`mb-3 p-3 bg-white rounded-2xl shadow-sm ${iconColor}`}>
-                        <i data-lucide={iconName} className="w-6 h-6"></i>
+                        <Icon name={iconName} className="w-6 h-6" />
                     </div>
                     <p className="text-[10px] font-black text-slate-700 uppercase tracking-tighter mb-1 leading-tight">{label}</p>
                     <p className="text-[9px] text-slate-400 truncate w-full px-4 italic">{file ? file.name : 'Pilih Foto'}</p>
@@ -55,34 +95,25 @@
 
         const App = () => {
             const [isAuthenticated, setIsAuthenticated] = useState(false);
-            const [adminPassword, setAdminPassword] = useState('');
+            const [adminPasswordInput, setAdminPasswordInput] = useState('');
             const [view, setView] = useState('student'); 
             const [isProcessing, setIsProcessing] = useState(false);
             const [step, setStep] = useState(0); 
             const [notification, setNotification] = useState(null);
             
-            // Inisialisasi Config dari LocalStorage jika ada
             const [config, setConfig] = useState(() => {
-                const savedConfig = localStorage.getItem('eduflow_config');
-                return savedConfig ? JSON.parse(savedConfig) : {
+                const saved = localStorage.getItem('eduflow_config_secure_v2');
+                return saved ? JSON.parse(saved) : {
                     apiKey: '',
                     clientId: '',
                     folderId: '',
                     spreadsheetId: '',
-                    masterPassword: 'admin123'
+                    masterPassword: DEFAULT_MASTER_PASSWORD
                 };
             });
 
             const [studentData, setStudentData] = useState({ nama: '', kk: null, akte: null, pip: null });
-            const [logs, setLogs] = useState([
-                { id: 1, nama: 'Siswa Contoh', status: 'Selesai', waktu: '20/12/2023 10:00', tipe: 'KK' }
-            ]);
-
-            useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            }, [view, isAuthenticated, notification, step]);
+            const [logs, setLogs] = useState([]);
 
             const showNotify = (type, message) => {
                 setNotification({ type, message });
@@ -91,24 +122,24 @@
 
             const handleLogin = (e) => {
                 e.preventDefault();
-                if (adminPassword === config.masterPassword) {
+                if (adminPasswordInput === config.masterPassword) {
                     setIsAuthenticated(true);
                     setView('admin');
-                    showNotify('success', 'Berhasil masuk ke Panel Admin.');
+                    showNotify('success', 'Akses Admin Diterima.');
                 } else {
-                    showNotify('error', 'Password salah!');
+                    showNotify('error', 'Sandi Salah. Akses Ditolak.');
                 }
             };
 
-            const saveConfiguration = () => {
-                localStorage.setItem('eduflow_config', JSON.stringify(config));
-                showNotify('success', 'Pengaturan & Password berhasil disimpan permanen.');
+            const saveFullConfig = () => {
+                localStorage.setItem('eduflow_config_secure_v2', JSON.stringify(config));
+                showNotify('success', 'Konfigurasi Sistem Diperbarui.');
             };
 
             const runAutomation = async (e) => {
                 e.preventDefault();
                 if (!studentData.nama || !studentData.kk) {
-                    showNotify('error', 'Nama dan Foto KK wajib ada.');
+                    showNotify('error', 'Lengkapi Nama & Foto KK.');
                     return;
                 }
                 setIsProcessing(true);
@@ -125,216 +156,230 @@
                     waktu: new Date().toLocaleString('id-ID'), 
                     tipe: 'Set Lengkap' 
                 };
-                setLogs([newLog, ...logs]);
-                showNotify('success', 'Mesin berhasil memproses data siswa!');
+                setLogs(prev => [newLog, ...prev]);
+                showNotify('success', 'Berkas Berhasil Terkirim ke Cloud.');
                 setStudentData({ nama: '', kk: null, akte: null, pip: null });
             };
 
             return (
-                <div className="min-h-screen text-slate-800">
+                <div className="min-h-screen text-slate-800 flex flex-col">
                     {notification && <Notification {...notification} />}
 
-                    <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+                    <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
                         <div className="flex items-center gap-3">
-                            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
-                                <i data-lucide="zap" className="w-5 h-5"></i>
+                            <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-xl shadow-blue-200">
+                                <Icon name="zap" className="w-5 h-5" />
                             </div>
                             <div className="text-left leading-tight">
-                                <h1 className="font-extrabold text-xl tracking-tight text-slate-900">EduFlow Dasis</h1>
-                                <p className="text-[9px] text-slate-400 uppercase tracking-[0.2em] font-bold">Engine by INISIAL TH</p>
+                                <h1 className="font-extrabold text-xl tracking-tight text-slate-900 leading-none">EduFlow Dasis</h1>
+                                <p className="text-[9px] text-slate-400 uppercase tracking-[0.2em] font-bold italic mt-1">Siswa Portal</p>
                             </div>
                         </div>
-                        <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
-                            <button onClick={() => setView('student')} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${view === 'student' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Siswa</button>
-                            <button onClick={() => setView(isAuthenticated ? 'admin' : 'login')} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${view === 'admin' || view === 'login' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Admin</button>
-                            
-                            {isAuthenticated && (
-                                <>
-                                    <button 
-                                        onClick={() => setView('settings')} 
-                                        className={`px-3 py-2 rounded-xl text-sm font-bold transition-all ${view === 'settings' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                        title="Pengaturan Mesin"
-                                    >
-                                        <i data-lucide="settings" className="w-4 h-4"></i>
-                                    </button>
-                                    <button 
-                                        onClick={() => {setIsAuthenticated(false); setView('student'); setAdminPassword('');}} 
-                                        className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                        title="Logout"
-                                    >
-                                        <i data-lucide="log-out" className="w-4 h-4"></i>
-                                    </button>
-                                </>
-                            )}
-                        </div>
+
+                        {isAuthenticated && (
+                            <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+                                <button onClick={() => setView('admin')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${view === 'admin' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}>Dashboard</button>
+                                <button onClick={() => setView('settings')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${view === 'settings' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}>Settings</button>
+                                <button onClick={() => {setIsAuthenticated(false); setView('student'); setAdminPasswordInput('');}} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                                    <Icon name="power" className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </nav>
 
-                    <main className="max-w-6xl mx-auto p-6 md:p-10">
-                        {view === 'login' && (
-                            <div className="max-w-sm mx-auto mt-20 bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-blue-100 border border-slate-100 text-center">
-                                <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-blue-600 shadow-inner">
-                                    <i data-lucide="lock" className="w-10 h-10"></i>
+                    <main className="max-w-6xl mx-auto p-6 md:p-10 flex-grow w-full">
+                        {view === 'login' && !isAuthenticated && (
+                            <div className="max-w-sm mx-auto mt-20 bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-100 border border-slate-100 text-center fade-in">
+                                <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-8 text-white shadow-xl">
+                                    <Icon name="shield-check" className="w-10 h-10 text-blue-400" />
                                 </div>
-                                <h2 className="text-2xl font-black mb-2 text-slate-900">Akses Admin</h2>
-                                <p className="text-slate-400 text-sm mb-8 font-medium">Masukkan sandi master untuk masuk.</p>
+                                <h2 className="text-2xl font-black mb-2 text-slate-900 text-center">Otentikasi Staf</h2>
+                                <p className="text-slate-400 text-xs mb-8 font-semibold tracking-wide uppercase text-center">Area Terbatas Admin</p>
                                 <form onSubmit={handleLogin} className="space-y-4 text-left">
                                     <input 
                                         type="password" 
-                                        placeholder="Password" 
-                                        className="w-full px-6 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-100 transition-all text-center font-bold" 
-                                        value={adminPassword} 
-                                        onChange={(e)=>setAdminPassword(e.target.value)} 
+                                        placeholder="Sandi Admin" 
+                                        className="w-full px-6 py-5 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-100 transition-all text-center font-bold text-lg" 
+                                        value={adminPasswordInput} 
+                                        onChange={(e)=>setAdminPasswordInput(e.target.value)} 
+                                        autoFocus
                                     />
-                                    <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all uppercase tracking-widest">MASUK DASBOR</button>
+                                    <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl hover:bg-black transition-all uppercase tracking-widest text-xs">MASUK SISTEM</button>
+                                    <button type="button" onClick={()=>setView('student')} className="w-full text-slate-400 text-[10px] font-bold uppercase py-2">Batal & Kembali</button>
                                 </form>
                             </div>
                         )}
 
                         {view === 'student' && (
-                            <div className="grid lg:grid-cols-12 gap-10 items-start">
-                                <div className="lg:col-span-8 bg-white p-8 md:p-12 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100">
-                                    <div className="flex items-center gap-4 mb-10 text-left">
-                                        <div className="bg-blue-50 p-4 rounded-2xl text-blue-600">
-                                            <i data-lucide="upload-cloud" className="w-8 h-8"></i>
+                            <div className="grid lg:grid-cols-12 gap-10 items-start fade-in">
+                                <div className="lg:col-span-8 bg-white p-8 md:p-14 rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50">
+                                    <div className="flex items-center gap-5 mb-12 text-left border-b border-slate-50 pb-8">
+                                        <div className="bg-blue-600 p-4 rounded-3xl text-white shadow-xl shadow-blue-100">
+                                            <Icon name="file-up" className="w-8 h-8" />
                                         </div>
                                         <div>
-                                            <h2 className="text-3xl font-black text-slate-900 leading-none">Portal Berkas</h2>
-                                            <p className="text-slate-400 font-semibold tracking-wide uppercase text-[10px] mt-2">Data Induk Siswa Digital</p>
+                                            <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Pengumpulan Dokumen</h2>
+                                            <p className="text-slate-400 font-bold uppercase text-[11px] tracking-widest mt-2">Mesin Otomasi EduFlow Dasis</p>
                                         </div>
                                     </div>
                                     
-                                    <form onSubmit={runAutomation} className="space-y-10 text-left">
-                                        <div className="space-y-3">
-                                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 block">Nama Lengkap Siswa</label>
+                                    <form onSubmit={runAutomation} className="space-y-12 text-left">
+                                        <div className="space-y-4">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 block leading-none">Identitas Lengkap Siswa</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full px-6 py-5 rounded-2xl border border-slate-200 outline-none text-xl font-bold focus:ring-4 focus:ring-blue-50 transition-all bg-slate-50" 
-                                                placeholder="Sesuai Akte Kelahiran..." 
+                                                className="w-full px-8 py-6 rounded-3xl border border-slate-100 outline-none text-2xl font-bold focus:ring-8 focus:ring-blue-50 transition-all bg-slate-50 shadow-inner" 
+                                                placeholder="Nama Sesuai Akte..." 
                                                 value={studentData.nama} 
                                                 onChange={(e)=>setStudentData({...studentData, nama:e.target.value})} 
                                             />
                                         </div>
                                         
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                            <FileUploadCard label="Foto KK" iconName="users" iconColor="text-blue-500" file={studentData.kk} onChange={(e)=>setStudentData({...studentData, kk:e.target.files[0]})} />
-                                            <FileUploadCard label="Foto Akte" iconName="file-badge" iconColor="text-emerald-500" file={studentData.akte} onChange={(e)=>setStudentData({...studentData, akte:e.target.files[0]})} />
-                                            <FileUploadCard label="Buku PIP" iconName="landmark" iconColor="text-amber-500" file={studentData.pip} onChange={(e)=>setStudentData({...studentData, pip:e.target.files[0]})} />
+                                            <FileUploadCard label="Foto Kartu Keluarga" iconName="users" iconColor="text-blue-500" file={studentData.kk} onChange={(e)=>setStudentData({...studentData, kk:e.target.files[0]})} />
+                                            <FileUploadCard label="Akte Kelahiran" iconName="award" iconColor="text-emerald-500" file={studentData.akte} onChange={(e)=>setStudentData({...studentData, akte:e.target.files[0]})} />
+                                            <FileUploadCard label="Buku Tabungan PIP" iconName="landmark" iconColor="text-amber-500" file={studentData.pip} onChange={(e)=>setStudentData({...studentData, pip:e.target.files[0]})} />
                                         </div>
 
-                                        <button 
-                                            disabled={isProcessing} 
-                                            className={`w-full py-6 rounded-[2rem] font-black text-white shadow-2xl transition-all flex justify-center items-center gap-4 text-xl tracking-tight ${isProcessing ? 'bg-slate-300' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
-                                        >
-                                            {isProcessing ? <i data-lucide="loader-2" className="animate-spin w-6 h-6"></i> : <i data-lucide="zap" className="w-6 h-6"></i>}
-                                            {isProcessing ? 'SEDANG MEMINDAI...' : 'PROSES DOKUMEN DIGITAL'}
-                                        </button>
+                                        <div className="pt-6">
+                                            <button 
+                                                disabled={isProcessing} 
+                                                className={`w-full py-7 rounded-[2.5rem] font-black text-white shadow-2xl transition-all flex justify-center items-center gap-5 text-2xl tracking-tight ${isProcessing ? 'bg-slate-300' : 'bg-blue-600 hover:bg-blue-700 active:scale-95 hover:shadow-blue-300'}`}
+                                            >
+                                                {isProcessing ? <Icon name="loader-2" className="w-8 h-8" animate={true} /> : <Icon name="zap" className="w-8 h-8" />}
+                                                {isProcessing ? 'MEMINDAI DATA...' : 'KIRIM BERKAS SEKARANG'}
+                                            </button>
+                                            <p className="text-center text-[10px] text-slate-300 mt-6 font-bold uppercase tracking-widest leading-none">Proses scan otomatis didukung oleh Google Cloud Vision Engine</p>
+                                        </div>
                                     </form>
                                 </div>
                                 
-                                <div className="lg:col-span-4 bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mt-10 -mr-10"></div>
-                                    <h3 className="font-black text-xl mb-10 border-b border-white/10 pb-6 text-left tracking-tight">Status Mesin</h3>
-                                    <div className="space-y-8 relative z-10">
+                                <div className="lg:col-span-4 bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden h-full">
+                                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>
+                                    <h3 className="font-black text-xl mb-12 border-b border-white/10 pb-6 text-left tracking-tight flex items-center gap-3">
+                                        <Icon name="cpu" className="text-blue-400 w-6 h-6" />
+                                        Status Operasi
+                                    </h3>
+                                    <div className="space-y-10 relative z-10">
                                         <Step active={step >= 1} current={step === 1} label="Cloud Upload" desc="Drive Storage" />
-                                        <Step active={step >= 2} current={step === 2} label="OCR Scanning" desc="Vision AI Scan" />
-                                        <Step active={step >= 3} current={step === 3} label="Database Sync" desc="Google Sheets" />
+                                        <Step active={step >= 2} current={step === 2} label="OCR Scanning" desc="Vision AI Processing" />
+                                        <Step active={step >= 3} current={step === 3} label="Database Sync" desc="Reporting result" />
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {view === 'admin' && (
-                            <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-2xl shadow-slate-100">
-                                <div className="p-10 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+                        {view === 'admin' && isAuthenticated && (
+                            <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl shadow-slate-200/50 fade-in">
+                                <div className="p-12 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6">
                                     <div className="text-left">
-                                        <h2 className="text-3xl font-black text-slate-900 leading-tight">Database Digital</h2>
-                                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-1">Log Aktivitas Mesin Dasis</p>
+                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none text-left">Rekapitulasi Mesin</h2>
+                                        <p className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.2em] mt-3 text-left">Hasil Pemindaian Berkas Siswa</p>
                                     </div>
-                                    <button className="bg-emerald-50 text-emerald-700 px-8 py-4 rounded-2xl font-black text-sm hover:bg-emerald-100 flex items-center gap-3 transition-all border border-emerald-100">
-                                        <i data-lucide="table" className="w-5 h-5"></i> BUKA GOOGLE SHEETS
+                                    <button className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs hover:bg-emerald-700 flex items-center gap-3 transition-all shadow-xl shadow-emerald-100">
+                                        <Icon name="external-link" className="w-4 h-4" /> BUKA DATABASE UTAMA
                                     </button>
                                 </div>
                                 <div className="overflow-x-auto text-left">
                                     <table className="w-full">
-                                        <thead className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-widest">
+                                        <thead className="bg-slate-50 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em]">
                                             <tr>
-                                                <th className="px-10 py-6">Nama Siswa</th>
-                                                <th className="px-10 py-6">Status</th>
-                                                <th className="px-10 py-6">Waktu Selesai</th>
+                                                <th className="px-12 py-7 text-left">Siswa Terdaftar</th>
+                                                <th className="px-12 py-7 text-left">Status OCR</th>
+                                                <th className="px-12 py-7 text-left">Waktu Sinkron</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                            {logs.map(log => (
+                                            {logs.length > 0 ? logs.map(log => (
                                                 <tr key={log.id} className="hover:bg-slate-50/50 transition-all">
-                                                    <td className="px-10 py-6 font-extrabold text-slate-700">{log.nama}</td>
-                                                    <td className="px-10 py-6">
-                                                        <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black">
-                                                            <i data-lucide="check-circle-2" className="w-3 h-3"></i> TERPROSES
+                                                    <td className="px-12 py-7 font-extrabold text-slate-700 text-lg text-left">{log.nama}</td>
+                                                    <td className="px-12 py-7 text-left">
+                                                        <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                                                            <Icon name="check-circle" className="w-3.5 h-3.5" /> Selesai
                                                         </div>
                                                     </td>
-                                                    <td className="px-10 py-6 text-slate-400 font-bold text-xs tracking-tight">{log.waktu}</td>
+                                                    <td className="px-12 py-7 text-slate-400 font-bold text-xs text-left">{log.waktu}</td>
                                                 </tr>
-                                            ))}
+                                            )) : (
+                                                <tr>
+                                                    <td colSpan="3" className="px-12 py-20 text-center text-slate-300 font-bold italic uppercase tracking-widest text-xs">Belum ada data masuk hari ini.</td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                         )}
 
-                        {view === 'settings' && (
-                            <div className="max-w-2xl mx-auto bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-slate-100 border border-slate-200">
-                                <div className="flex items-center gap-4 mb-10 text-left">
-                                    <div className="bg-slate-100 p-4 rounded-2xl text-slate-800">
-                                        <i data-lucide="settings" className="w-8 h-8"></i>
+                        {view === 'settings' && isAuthenticated && (
+                            <div className="max-w-3xl mx-auto bg-white p-12 rounded-[3rem] shadow-2xl shadow-slate-200/50 border border-slate-100 fade-in">
+                                <div className="flex items-center gap-5 mb-12 text-left">
+                                    <div className="bg-slate-900 p-4 rounded-3xl text-white shadow-xl">
+                                        <Icon name="settings-2" className="w-8 h-8" />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-black text-slate-900 leading-none">Konfigurasi Cloud</h2>
-                                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2">Penyimpanan Permanen Browser</p>
+                                        <h2 className="text-3xl font-black text-slate-900 leading-none tracking-tight text-left">Konfigurasi Inti</h2>
+                                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2 italic text-left">Parameter Mesin Dasis</p>
                                     </div>
                                 </div>
                                 
-                                <div className="space-y-6 text-left">
+                                <div className="space-y-8 text-left">
                                     <ConfigInput label="Google Cloud API Key" value={config.apiKey} onChange={(val)=>setConfig({...config, apiKey: val})} />
-                                    <ConfigInput label="OAuth Client ID" value={config.clientId} onChange={(val)=>setConfig({...config, clientId: val})} />
-                                    <ConfigInput label="Google Drive Folder ID" value={config.folderId} onChange={(val)=>setConfig({...config, folderId: val})} />
-                                    <ConfigInput label="Google Spreadsheet ID" value={config.spreadsheetId} onChange={(val)=>setConfig({...config, spreadsheetId: val})} />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <ConfigInput label="Google Drive Folder ID" value={config.folderId} onChange={(val)=>setConfig({...config, folderId: val})} />
+                                        <ConfigInput label="Spreadsheet ID" value={config.spreadsheetId} onChange={(val)=>setConfig({...config, spreadsheetId: val})} />
+                                    </div>
                                     
-                                    <div className="pt-6 border-t border-slate-100">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2 leading-none">Password Admin Baru</label>
+                                    <div className="pt-8 border-t border-slate-100 space-y-4 text-left">
+                                        <label className="text-[11px] font-black text-blue-600 uppercase tracking-widest block leading-none ml-1 text-left">🔒 Password Admin (Keamanan Tinggi)</label>
                                         <input 
                                             type="text" 
-                                            className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none text-sm font-bold bg-slate-50 focus:ring-4 focus:ring-blue-50 transition-all" 
+                                            className="w-full px-6 py-5 rounded-2xl border border-blue-100 outline-none text-lg font-bold bg-blue-50 focus:ring-8 focus:ring-blue-100 transition-all text-blue-800" 
                                             value={config.masterPassword} 
                                             onChange={(e)=>setConfig({...config, masterPassword: e.target.value})} 
                                         />
-                                        <p className="text-[10px] text-slate-400 mt-2 italic font-medium">Lakukan simpan perubahan untuk mengaktifkan password baru ini secara permanen.</p>
+                                        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-xl text-amber-800 text-[10px] font-bold leading-relaxed uppercase text-left">
+                                            ⚠️ Jangan gunakan 'admin123'. Ganti password ini agar sistem tetap aman.
+                                        </div>
                                     </div>
                                     
                                     <button 
-                                        onClick={saveConfiguration}
-                                        className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        onClick={saveFullConfig}
+                                        className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3 text-sm mt-4"
                                     >
-                                        <i data-lucide="save" className="w-5 h-5"></i> SIMPAN PERUBAHAN PERMANEN
+                                        <Icon name="save" className="w-5 h-5" /> Simpan Permanen ke Browser
                                     </button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    <footer className="py-16 text-slate-300 text-[10px] uppercase font-black tracking-[0.5em] mt-10">
-                        &copy; 2024 EduFlow Dasis Standalone &bull; INISIAL TH
+                    {/* FOOTER */}
+                    <footer className="py-12 border-t border-slate-100 bg-white/50">
+                        <div className="max-w-6xl mx-auto px-6 flex justify-between items-center">
+                            <p className="text-slate-900 text-[10px] font-black uppercase tracking-[0.4em]">
+                                &copy; 2025 EDUFLOW by INISIAL TH
+                            </p>
+                            
+                            <button 
+                                onClick={() => !isAuthenticated && setView('login')} 
+                                className="admin-hidden-trigger text-slate-900 text-[10px] font-bold uppercase tracking-widest hover:text-blue-600"
+                            >
+                                {isAuthenticated ? 'Sistem Aktif' : 'Staf Saja'}
+                            </button>
+                        </div>
                     </footer>
                 </div>
             );
         };
 
         const ConfigInput = ({ label, value, onChange }) => (
-            <div>
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2 leading-none">{label}</label>
+            <div className="text-left">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1 text-left">{label}</label>
                 <input 
                     type="text" 
-                    className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none text-sm font-mono bg-white focus:ring-4 focus:ring-blue-50 transition-all" 
-                    placeholder="Masukkan kode..." 
+                    className="w-full px-6 py-5 rounded-2xl border border-slate-100 outline-none text-sm font-mono bg-white focus:ring-4 focus:ring-slate-50 transition-all shadow-sm" 
+                    placeholder="Input kode..." 
                     value={value} 
                     onChange={(e)=>onChange(e.target.value)}
                 />
@@ -342,13 +387,13 @@
         );
 
         const Step = ({ active, current, label, desc }) => (
-            <div className={`flex items-start gap-5 transition-all duration-700 text-left ${active ? 'opacity-100 translate-x-0' : 'opacity-20 -translate-x-4'}`}>
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all shadow-lg ${current ? 'bg-yellow-400 animate-pulse ring-8 ring-yellow-400/20 shadow-yellow-400/20' : active ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-800'}`}>
-                    {active && !current ? <i data-lucide="check" className="w-5 h-5 text-white"></i> : <div className="w-2 h-2 bg-white/40 rounded-full"></div>}
+            <div className={`flex items-start gap-6 transition-all duration-700 text-left ${active ? 'opacity-100 translate-x-0' : 'opacity-20 -translate-x-4'}`}>
+                <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center flex-shrink-0 transition-all shadow-2xl ${current ? 'bg-yellow-400 animate-pulse ring-8 ring-yellow-400/20 shadow-yellow-400/30' : active ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-800'}`}>
+                    {active && !current ? <Icon name="check" className="w-6 h-6 text-white" /> : <div className="w-2.5 h-2.5 bg-white/30 rounded-full"></div>}
                 </div>
-                <div className="flex flex-col text-left">
-                    <span className={`text-base font-black tracking-tight ${current ? 'text-yellow-400' : 'text-white'}`}>{label}</span>
-                    <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest leading-none mt-1">{desc}</span>
+                <div className="flex flex-col text-left justify-center h-12">
+                    <span className={`text-lg font-extrabold tracking-tight leading-none ${current ? 'text-yellow-400' : 'text-white'}`}>{label}</span>
+                    <span className="text-[11px] text-white/30 font-black uppercase tracking-widest mt-2 leading-none text-left">{desc}</span>
                 </div>
             </div>
         );
