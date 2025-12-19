@@ -41,7 +41,7 @@
 
         const DEFAULT_MASTER_PASSWORD = 'admin123'; 
 
-        // Komponen Ikon Aman (Tanpa error removeChild/toSvg)
+        // Komponen Ikon Aman
         const Icon = ({ name, className = "w-5 h-5", animate = false }) => {
             const iconRef = useRef(null);
             useEffect(() => {
@@ -63,7 +63,7 @@
                 'bg-blue-50 border-blue-200 text-blue-800'
             }`}>
                 <Icon name={type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'alert-circle'} />
-                <p className="text-sm font-bold">{message}</p>
+                <p className="text-sm font-bold text-left">{message}</p>
             </div>
         );
 
@@ -103,16 +103,22 @@
             const [studentData, setStudentData] = useState({ nama: '', kk: null, akte: null, pip: null });
             const [logs, setLogs] = useState([]);
 
-            // OAuth Handler
+            // OAuth Callback Handler
             useEffect(() => {
                 const hash = window.location.hash;
                 if (hash) {
-                    const token = new URLSearchParams(hash.replace('#', '?')).get('access_token');
+                    const params = new URLSearchParams(hash.replace('#', '?'));
+                    const token = params.get('access_token');
+                    const error = params.get('error');
+
                     if (token) {
                         setGoogleToken(token);
                         localStorage.setItem('g_access_token', token);
                         window.history.replaceState({}, document.title, window.location.pathname);
                         showNotify('success', 'Akun Google Berhasil Terhubung!');
+                        setView('settings');
+                    } else if (error) {
+                        showNotify('error', 'Gagal menghubungkan akun: ' + error);
                     }
                 } else {
                     const savedToken = localStorage.getItem('g_access_token');
@@ -125,10 +131,19 @@
                 setTimeout(() => setNotification(null), 5000);
             };
 
+            // Fungsi untuk memulai proses OAuth
             const handleGoogleAuth = () => {
-                if (!config.clientId) return showNotify('error', 'Isi Client ID di Settings.');
+                if (!config.clientId) return showNotify('error', 'Isi Client ID terlebih dahulu di menu Settings.');
+                
+                const redirectUri = window.location.origin + window.location.pathname;
                 const scope = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-                const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.clientId}&redirect_uri=${window.location.origin}&response_type=token&scope=${encodeURIComponent(scope)}`;
+                
+                const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
+                                `client_id=${config.clientId}&` +
+                                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                                `response_type=token&` +
+                                `scope=${encodeURIComponent(scope)}`;
+                
                 window.location.assign(authUrl);
             };
 
@@ -142,7 +157,7 @@
                     headers: { 'Authorization': `Bearer ${googleToken}` },
                     body: formData
                 });
-                if (!res.ok) throw new Error('Gagal Upload Drive');
+                if (!res.ok) throw new Error('Gagal Upload ke Google Drive. Cek izin folder.');
                 return await res.json();
             };
 
@@ -154,39 +169,41 @@
                     body: JSON.stringify({ requests: [{ image: { content: base64 }, features: [{ type: 'TEXT_DETECTION' }] }] })
                 });
                 const data = await res.json();
-                return data.responses[0]?.fullTextAnnotation?.text || 'Teks tidak ditemukan';
+                if (data.error) throw new Error('Google Vision Error: ' + data.error.message);
+                return data.responses[0]?.fullTextAnnotation?.text || 'Teks tidak terbaca.';
             };
 
             const appendSheet = async (values) => {
-                await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/Sheet1:append?valueInputOption=USER_ENTERED`, {
+                const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/Sheet1:append?valueInputOption=USER_ENTERED`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${googleToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ values: [values] })
                 });
+                if (!res.ok) throw new Error('Gagal menulis ke Google Sheets.');
             };
 
             const runAutomation = async (e) => {
                 e.preventDefault();
-                if (!googleToken) return showNotify('error', 'Admin belum login Google di Settings.');
+                if (!googleToken) return showNotify('error', 'Admin harus menghubungkan akun Google di menu Settings.');
                 if (!studentData.nama || !studentData.kk) return showNotify('error', 'Lengkapi Nama & Foto KK.');
 
                 setIsProcessing(true);
                 try {
-                    setStep(1); // Upload
+                    setStep(1); 
                     const driveRes = await uploadFile(studentData.kk, 'KK');
                     
-                    setStep(2); // OCR
+                    setStep(2); 
                     const ocrTeks = await performOCR(studentData.kk);
                     
-                    setStep(3); // Save
+                    setStep(3); 
                     const timestamp = new Date().toLocaleString('id-ID');
                     await appendSheet([timestamp, studentData.nama, 'KK', ocrTeks.substring(0, 1000), driveRes.webViewLink]);
 
                     setLogs(prev => [{ id: Date.now(), nama: studentData.nama, status: 'Berhasil', waktu: timestamp }, ...prev]);
-                    showNotify('success', 'Data berhasil diproses ke Google Cloud!');
+                    showNotify('success', 'Data berhasil diproses sepenuhnya!');
                     setStudentData({ nama: '', kk: null, akte: null, pip: null });
                 } catch (err) {
-                    showNotify('error', 'Eror: ' + err.message);
+                    showNotify('error', err.message);
                 } finally {
                     setIsProcessing(false);
                     setStep(0);
@@ -198,7 +215,7 @@
                 if (adminPasswordInput === config.masterPassword) {
                     setIsAuthenticated(true);
                     setView('admin');
-                    showNotify('success', 'Akses Admin Diterima.');
+                    showNotify('success', 'Selamat Datang, Admin.');
                 } else {
                     showNotify('error', 'Sandi Salah.');
                 }
@@ -232,8 +249,8 @@
                         {view === 'login' && !isAuthenticated && (
                             <div className="max-w-sm mx-auto mt-20 bg-white p-10 rounded-[3rem] shadow-2xl shadow-blue-100 border border-slate-100 text-center fade-in">
                                 <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-8 text-white shadow-xl"><Icon name="shield-check" className="w-10 h-10 text-blue-400" /></div>
-                                <h2 className="text-2xl font-black mb-2 text-slate-900">Otentikasi Staf</h2>
-                                <p className="text-slate-400 text-xs mb-8 font-semibold uppercase tracking-wide">Area Terbatas Admin</p>
+                                <h2 className="text-2xl font-black mb-2 text-slate-900">Akses Staf</h2>
+                                <p className="text-slate-400 text-xs mb-8 font-semibold uppercase tracking-wide">Autentikasi Terbatas</p>
                                 <form onSubmit={handleLogin} className="space-y-4">
                                     <input type="password" placeholder="Sandi Admin" className="w-full px-6 py-5 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-100 transition-all text-center font-bold text-lg" value={adminPasswordInput} onChange={(e)=>setAdminPasswordInput(e.target.value)} autoFocus />
                                     <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl hover:bg-black transition-all uppercase tracking-widest text-xs">MASUK SISTEM</button>
@@ -280,8 +297,8 @@
                             <div className="bg-white rounded-[3rem] border border-slate-100 overflow-hidden shadow-2xl fade-in text-left">
                                 <div className="p-12 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6">
                                     <div className="text-left">
-                                        <h2 className="text-3xl font-black text-slate-900 leading-tight">Rekapitulasi Mesin</h2>
-                                        <p className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.2em] mt-3">Log Pemindaian Terbaru</p>
+                                        <h2 className="text-3xl font-black text-slate-900 leading-tight">Database Digital</h2>
+                                        <p className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.2em] mt-3 tracking-widest italic">Log Pemindaian Terbaru</p>
                                     </div>
                                     <a href={`https://docs.google.com/spreadsheets/d/${config.spreadsheetId}`} target="_blank" className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs hover:bg-emerald-700 flex items-center gap-3 transition-all"><Icon name="external-link" className="w-4 h-4" /> BUKA DATABASE UTAMA</a>
                                 </div>
@@ -306,14 +323,32 @@
 
                         {view === 'settings' && isAuthenticated && (
                             <div className="max-w-3xl mx-auto bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 fade-in text-left">
-                                <h2 className="text-3xl font-black text-slate-900 mb-10 flex items-center gap-4"><Icon name="settings-2" className="w-8 h-8" /> Konfigurasi Inti</h2>
+                                <h2 className="text-3xl font-black text-slate-900 mb-10 flex items-center gap-4"><Icon name="settings-2" className="w-8 h-8" /> Konfigurasi Cloud</h2>
                                 
-                                <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4">
-                                    <div className="text-left"><p className="font-bold text-blue-900 uppercase text-xs tracking-widest">Koneksi Google Cloud</p><p className="text-[10px] text-blue-700 font-medium italic">Wajib terhubung agar fitur upload & sheets aktif.</p></div>
-                                    <button onClick={handleGoogleAuth} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs flex items-center gap-2 hover:bg-blue-700 transition-all">
-                                        <Icon name="refresh-cw" className="w-4 h-4" animate={!googleToken} />
-                                        {googleToken ? 'AKUN TERHUBUNG' : 'HUBUNGKAN AKUN'}
-                                    </button>
+                                <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-3xl space-y-4">
+                                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                        <div className="text-left">
+                                            <p className="font-bold text-blue-900 uppercase text-xs tracking-widest">Koneksi Google Cloud</p>
+                                            <p className="text-[10px] text-blue-700 font-medium italic">Wajib terhubung agar fitur upload & database aktif.</p>
+                                        </div>
+                                        <button onClick={handleGoogleAuth} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs flex items-center gap-2 hover:bg-blue-700 transition-all">
+                                            <Icon name="refresh-cw" className="w-4 h-4" animate={!googleToken} />
+                                            {googleToken ? 'AKUN TERHUBUNG' : 'HUBUNGKAN AKUN'}
+                                        </button>
+                                    </div>
+                                    
+                                    {/* INFO WHITELIST UNTUK MEMPERBAIKI AKSES DIBLOKIR */}
+                                    <div className="p-4 bg-white/50 rounded-2xl border border-blue-100">
+                                        <p className="text-[10px] font-bold text-blue-800 mb-2 uppercase tracking-tight flex items-center gap-1">
+                                            <Icon name="info" className="w-3 h-3" /> Solusi "Akses Diblokir"
+                                        </p>
+                                        <p className="text-[10px] text-slate-600 leading-relaxed">
+                                            Pastikan URL berikut sudah didaftarkan pada Google Cloud Console Anda di bagian <b>Authorized Redirect URIs</b>:
+                                        </p>
+                                        <code className="block mt-2 p-2 bg-slate-100 rounded text-[10px] break-all font-mono text-blue-700 select-all border border-slate-200">
+                                            {window.location.origin + window.location.pathname}
+                                        </code>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-8 text-left">
@@ -323,11 +358,11 @@
                                         <ConfigInput label="Spreadsheet ID" value={config.spreadsheetId} onChange={(val)=>setConfig({...config, spreadsheetId: val})} />
                                     </div>
                                     <ConfigInput label="OAuth Client ID" value={config.clientId} onChange={(val)=>setConfig({...config, clientId: val})} />
-                                    <div className="pt-8 border-t border-slate-100 space-y-4">
+                                    <div className="pt-8 border-t border-slate-100 space-y-4 text-left">
                                         <label className="text-[11px] font-black text-blue-600 uppercase tracking-widest block">🔒 Password Admin (Keamanan)</label>
                                         <input type="text" className="w-full px-6 py-5 rounded-2xl border border-blue-100 outline-none text-lg font-bold bg-blue-50 focus:ring-8 focus:ring-blue-100 transition-all text-blue-800" value={config.masterPassword} onChange={(e)=>setConfig({...config, masterPassword: e.target.value})} />
                                     </div>
-                                    <button onClick={()=>{localStorage.setItem('eduflow_config_v2025_final', JSON.stringify(config)); showNotify('success', 'Berhasil Disimpan Permanen!');}} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3 text-sm mt-4"><Icon name="save" className="w-5 h-5" /> SIMPAN PERUBAHAN</button>
+                                    <button onClick={()=>{localStorage.setItem('eduflow_config_v2025_final', JSON.stringify(config)); showNotify('success', 'Konfigurasi Disimpan Permanen!');}} className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3 text-sm mt-4"><Icon name="save" className="w-5 h-5" /> SIMPAN PERUBAHAN</button>
                                 </div>
                             </div>
                         )}
@@ -345,7 +380,7 @@
 
         const ConfigInput = ({ label, value, onChange }) => (
             <div className="text-left">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">{label}</label>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1 text-left">{label}</label>
                 <input type="text" className="w-full px-6 py-5 rounded-2xl border border-slate-100 outline-none text-sm font-mono bg-white focus:ring-4 focus:ring-slate-50 transition-all shadow-sm" value={value} onChange={(e)=>onChange(e.target.value)} />
             </div>
         );
