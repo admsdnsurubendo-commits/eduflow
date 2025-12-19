@@ -1,8 +1,8 @@
 {
-  "name": "eduflow-dasis-standalone",
-  "version": "1.4.0",
-  "description": "Mesin Otomasi Dokumen Siswa Terintegrasi Google Cloud 2025 - INISIAL TH",
-  "main": "index.html",
+  "name": "eduflow-dasis-engine",
+  "version": "1.5.0",
+  "description": "Real OCR Engine for Student Documents with Google Cloud Integration 2025 - INISIAL TH",
+  "main": "eduflow_dasis_engine.jsx",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
