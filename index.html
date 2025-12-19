@@ -61,12 +61,16 @@
             const [step, setStep] = useState(0); 
             const [notification, setNotification] = useState(null);
             
-            const [config, setConfig] = useState({
-                apiKey: '',
-                clientId: '',
-                folderId: '',
-                spreadsheetId: '',
-                masterPassword: 'admin123'
+            // Inisialisasi Config dari LocalStorage jika ada
+            const [config, setConfig] = useState(() => {
+                const savedConfig = localStorage.getItem('eduflow_config');
+                return savedConfig ? JSON.parse(savedConfig) : {
+                    apiKey: '',
+                    clientId: '',
+                    folderId: '',
+                    spreadsheetId: '',
+                    masterPassword: 'admin123'
+                };
             });
 
             const [studentData, setStudentData] = useState({ nama: '', kk: null, akte: null, pip: null });
@@ -78,7 +82,7 @@
                 if (window.lucide) {
                     window.lucide.createIcons();
                 }
-            });
+            }, [view, isAuthenticated, notification, step]);
 
             const showNotify = (type, message) => {
                 setNotification({ type, message });
@@ -94,6 +98,11 @@
                 } else {
                     showNotify('error', 'Password salah!');
                 }
+            };
+
+            const saveConfiguration = () => {
+                localStorage.setItem('eduflow_config', JSON.stringify(config));
+                showNotify('success', 'Pengaturan & Password berhasil disimpan permanen.');
             };
 
             const runAutomation = async (e) => {
@@ -149,7 +158,7 @@
                                         <i data-lucide="settings" className="w-4 h-4"></i>
                                     </button>
                                     <button 
-                                        onClick={() => {setIsAuthenticated(false); setView('student');}} 
+                                        onClick={() => {setIsAuthenticated(false); setView('student'); setAdminPassword('');}} 
                                         className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
                                         title="Logout"
                                     >
@@ -166,7 +175,7 @@
                                 <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-8 text-blue-600 shadow-inner">
                                     <i data-lucide="lock" className="w-10 h-10"></i>
                                 </div>
-                                <h2 className="text-2xl font-black mb-2">Akses Admin</h2>
+                                <h2 className="text-2xl font-black mb-2 text-slate-900">Akses Admin</h2>
                                 <p className="text-slate-400 text-sm mb-8 font-medium">Masukkan sandi master untuk masuk.</p>
                                 <form onSubmit={handleLogin} className="space-y-4 text-left">
                                     <input 
@@ -176,7 +185,7 @@
                                         value={adminPassword} 
                                         onChange={(e)=>setAdminPassword(e.target.value)} 
                                     />
-                                    <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all">OTENTIKASI</button>
+                                    <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all uppercase tracking-widest">MASUK DASBOR</button>
                                 </form>
                             </div>
                         )}
@@ -189,8 +198,8 @@
                                             <i data-lucide="upload-cloud" className="w-8 h-8"></i>
                                         </div>
                                         <div>
-                                            <h2 className="text-3xl font-black text-slate-900">Portal Berkas</h2>
-                                            <p className="text-slate-400 font-semibold tracking-wide uppercase text-[10px]">Data Induk Siswa Digital</p>
+                                            <h2 className="text-3xl font-black text-slate-900 leading-none">Portal Berkas</h2>
+                                            <p className="text-slate-400 font-semibold tracking-wide uppercase text-[10px] mt-2">Data Induk Siswa Digital</p>
                                         </div>
                                     </div>
                                     
@@ -200,7 +209,7 @@
                                             <input 
                                                 type="text" 
                                                 className="w-full px-6 py-5 rounded-2xl border border-slate-200 outline-none text-xl font-bold focus:ring-4 focus:ring-blue-50 transition-all bg-slate-50" 
-                                                placeholder="Contoh: Andi Pratama" 
+                                                placeholder="Sesuai Akte Kelahiran..." 
                                                 value={studentData.nama} 
                                                 onChange={(e)=>setStudentData({...studentData, nama:e.target.value})} 
                                             />
@@ -214,7 +223,7 @@
 
                                         <button 
                                             disabled={isProcessing} 
-                                            className={`w-full py-6 rounded-[2rem] font-black text-white shadow-2xl transition-all flex justify-center items-center gap-4 text-xl tracking-tight ${isProcessing ? 'bg-slate-300' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-300 active:scale-95'}`}
+                                            className={`w-full py-6 rounded-[2rem] font-black text-white shadow-2xl transition-all flex justify-center items-center gap-4 text-xl tracking-tight ${isProcessing ? 'bg-slate-300' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
                                         >
                                             {isProcessing ? <i data-lucide="loader-2" className="animate-spin w-6 h-6"></i> : <i data-lucide="zap" className="w-6 h-6"></i>}
                                             {isProcessing ? 'SEDANG MEMINDAI...' : 'PROSES DOKUMEN DIGITAL'}
@@ -222,9 +231,9 @@
                                     </form>
                                 </div>
                                 
-                                <div className="lg:col-span-4 bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl shadow-blue-900/20 relative overflow-hidden">
+                                <div className="lg:col-span-4 bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mt-10 -mr-10"></div>
-                                    <h3 className="font-black text-xl mb-10 border-b border-white/10 pb-6 text-left tracking-tight">Status Mesin Dasis</h3>
+                                    <h3 className="font-black text-xl mb-10 border-b border-white/10 pb-6 text-left tracking-tight">Status Mesin</h3>
                                     <div className="space-y-8 relative z-10">
                                         <Step active={step >= 1} current={step === 1} label="Cloud Upload" desc="Drive Storage" />
                                         <Step active={step >= 2} current={step === 2} label="OCR Scanning" desc="Vision AI Scan" />
@@ -241,7 +250,7 @@
                                         <h2 className="text-3xl font-black text-slate-900 leading-tight">Database Digital</h2>
                                         <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-1">Log Aktivitas Mesin Dasis</p>
                                     </div>
-                                    <button className="bg-emerald-50 text-emerald-700 px-8 py-4 rounded-2xl font-black text-sm hover:bg-emerald-100 flex items-center gap-3 transition-all shadow-sm border border-emerald-100">
+                                    <button className="bg-emerald-50 text-emerald-700 px-8 py-4 rounded-2xl font-black text-sm hover:bg-emerald-100 flex items-center gap-3 transition-all border border-emerald-100">
                                         <i data-lucide="table" className="w-5 h-5"></i> BUKA GOOGLE SHEETS
                                     </button>
                                 </div>
@@ -256,10 +265,10 @@
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
                                             {logs.map(log => (
-                                                <tr key={log.id} className="hover:bg-slate-50/50 transition-all group">
+                                                <tr key={log.id} className="hover:bg-slate-50/50 transition-all">
                                                     <td className="px-10 py-6 font-extrabold text-slate-700">{log.nama}</td>
                                                     <td className="px-10 py-6">
-                                                        <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                                                        <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black">
                                                             <i data-lucide="check-circle-2" className="w-3 h-3"></i> TERPROSES
                                                         </div>
                                                     </td>
@@ -279,8 +288,8 @@
                                         <i data-lucide="settings" className="w-8 h-8"></i>
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-black text-slate-900">Konfigurasi Cloud</h2>
-                                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Pengaturan Mesin EduFlow Dasis</p>
+                                        <h2 className="text-2xl font-black text-slate-900 leading-none">Konfigurasi Cloud</h2>
+                                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2">Penyimpanan Permanen Browser</p>
                                     </div>
                                 </div>
                                 
@@ -291,20 +300,21 @@
                                     <ConfigInput label="Google Spreadsheet ID" value={config.spreadsheetId} onChange={(val)=>setConfig({...config, spreadsheetId: val})} />
                                     
                                     <div className="pt-6 border-t border-slate-100">
-                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">Password Admin Baru</label>
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2 leading-none">Password Admin Baru</label>
                                         <input 
                                             type="text" 
-                                            className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none text-sm font-bold bg-slate-50" 
+                                            className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none text-sm font-bold bg-slate-50 focus:ring-4 focus:ring-blue-50 transition-all" 
                                             value={config.masterPassword} 
                                             onChange={(e)=>setConfig({...config, masterPassword: e.target.value})} 
                                         />
+                                        <p className="text-[10px] text-slate-400 mt-2 italic font-medium">Lakukan simpan perubahan untuk mengaktifkan password baru ini secara permanen.</p>
                                     </div>
                                     
                                     <button 
-                                        onClick={() => showNotify('success', 'Konfigurasi telah disimpan secara lokal.')}
-                                        className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all"
+                                        onClick={saveConfiguration}
+                                        className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
-                                        SIMPAN PERUBAHAN
+                                        <i data-lucide="save" className="w-5 h-5"></i> SIMPAN PERUBAHAN PERMANEN
                                     </button>
                                 </div>
                             </div>
@@ -320,7 +330,7 @@
 
         const ConfigInput = ({ label, value, onChange }) => (
             <div>
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2 leading-none">{label}</label>
                 <input 
                     type="text" 
                     className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none text-sm font-mono bg-white focus:ring-4 focus:ring-blue-50 transition-all" 
@@ -338,7 +348,7 @@
                 </div>
                 <div className="flex flex-col text-left">
                     <span className={`text-base font-black tracking-tight ${current ? 'text-yellow-400' : 'text-white'}`}>{label}</span>
-                    <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{desc}</span>
+                    <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest leading-none mt-1">{desc}</span>
                 </div>
             </div>
         );
