@@ -1,7 +1,7 @@
 {
-  "name": "eduflow-dasis-engine",
-  "version": "1.5.0",
-  "description": "Real OCR Engine for Student Documents with Google Cloud Integration 2025 - INISIAL TH",
+  "name": "eduflow-dasis-gas-bridge",
+  "version": "2.0.0",
+  "description": "Mesin Otomasi 3 Dokumen via Google Apps Script 2025 - INISIAL TH",
   "main": "eduflow_dasis_engine.jsx",
   "dependencies": {
     "react": "^18.2.0",
