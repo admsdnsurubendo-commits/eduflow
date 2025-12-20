@@ -13,7 +13,7 @@
         body, input, select, button { font-family: Arial, sans-serif !important; -webkit-font-smoothing: antialiased; }
         .panel-monitor { background: linear-gradient(165deg, #0f172a 0%, #1e293b 100%); }
         .glass-nav { background: rgba(255, 255, 255, 0.98); border-bottom: 1px solid #e2e8f0; }
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -30,19 +30,27 @@
 
         const App = () => {
             const [view, setView] = useState('student');
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [isProcessing, setIsProcessing] = useState(false);
             const [step, setStep] = useState(0); 
             const [notification, setNotification] = useState(null);
-            const [adminPass, setAdminPass] = useState('');
+            
+            const [adminLoginPass, setAdminLoginPass] = useState('');
+            const [passChange, setPassChange] = useState({ old: '', new: '', confirm: '' });
+
             const [studentData, setStudentData] = useState({ nama: '', kelas: '', kk: null, akte: null, pip: null });
+            
             const [config, setConfig] = useState(() => {
-                const saved = localStorage.getItem('eduflow_gas_config');
-                return saved ? JSON.parse(saved) : { gasUrl: '', masterPassword: 'admin123' };
+                const saved = localStorage.getItem('eduflow_config_v2025_final');
+                return saved ? JSON.parse(saved) : {
+                    gasUrl: '',
+                    masterPassword: 'admin123'
+                };
             });
 
             const showNotify = (type, message) => {
                 setNotification({ type, message });
-                setTimeout(() => setNotification(null), 6000);
+                setTimeout(() => setNotification(null), 5000);
             };
 
             const convertToBase64 = (file) => {
@@ -56,19 +64,19 @@
 
             const runAutomation = async (e) => {
                 e.preventDefault();
-                if (!config.gasUrl) return showNotify('error', 'Konfigurasi belum diatur.');
+                if (!config.gasUrl) return showNotify('error', 'Konfigurasi belum diatur oleh Admin.');
                 if (!studentData.nama || !studentData.kelas) return showNotify('error', 'Lengkapi identitas siswa.');
-                if (!studentData.kk || !studentData.akte || !studentData.pip) return showNotify('error', 'Lengkapi 3 foto dokumen asli.');
+                if (!studentData.kk || !studentData.akte || !studentData.pip) return showNotify('error', 'Lengkapi ketiga foto dokumen asli.');
 
                 setIsProcessing(true);
-                setStep(1); // Upload
+                setStep(1); 
                 
                 try {
                     const b64KK = await convertToBase64(studentData.kk);
                     const b64Akte = await convertToBase64(studentData.akte);
                     const b64PIP = await convertToBase64(studentData.pip);
 
-                    setStep(2); // AI
+                    setStep(2); 
                     const payload = {
                         nama_siswa: studentData.nama,
                         kelas: studentData.kelas,
@@ -83,7 +91,7 @@
                         body: JSON.stringify(payload)
                     });
 
-                    setStep(3); // GSync
+                    setStep(3); 
                     setTimeout(() => {
                         setStep(4);
                         showNotify('success', 'Data ' + studentData.nama + ' berhasil diarsipkan.');
@@ -99,8 +107,27 @@
 
             const handleLogin = (e) => {
                 e.preventDefault();
-                if (adminPass === config.masterPassword) { setView('admin'); setAdminPass(''); }
-                else showNotify('error', 'Sandi salah.');
+                if (adminLoginPass === config.masterPassword) {
+                    setIsAuthenticated(true);
+                    setView('admin');
+                    setAdminLoginPass('');
+                    showNotify('success', 'Akses diterima.');
+                } else {
+                    showNotify('error', 'Sandi salah.');
+                }
+            };
+
+            const handleChangePassword = (e) => {
+                e.preventDefault();
+                if (passChange.old !== config.masterPassword) return showNotify('error', 'Sandi lama tidak sesuai.');
+                if (passChange.new !== passChange.confirm) return showNotify('error', 'Konfirmasi sandi baru tidak cocok.');
+                if (passChange.new.length < 4) return showNotify('error', 'Sandi baru terlalu pendek.');
+
+                const newConfig = { ...config, masterPassword: passChange.new };
+                setConfig(newConfig);
+                localStorage.setItem('eduflow_config_v2025_final', JSON.stringify(newConfig));
+                setPassChange({ old: '', new: '', confirm: '' });
+                showNotify('success', 'Sandi Admin berhasil diperbarui!');
             };
 
             return (
@@ -115,15 +142,15 @@
                     )}
 
                     <nav className="glass-nav px-8 py-5 flex justify-between items-center sticky top-0 z-50">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 text-left">
                             <div className="bg-indigo-600 p-2 rounded text-white shadow-lg"><Icon name="zap" strokeWidth={2.5} /></div>
                             <div>
                                 <h1 className="font-bold text-lg tracking-tight text-slate-900 leading-none">EDUFLOW DASIS</h1>
                                 <p className="text-[10px] font-normal text-indigo-600 mt-1 tracking-widest uppercase leading-none">Smart Engine v2.5</p>
                             </div>
                         </div>
-                        {view === 'admin' && (
-                            <button onClick={() => setView('student')} className="text-slate-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                        {isAuthenticated && (
+                            <button onClick={() => { setIsAuthenticated(false); setView('student'); }} className="text-slate-400 hover:text-red-600 font-normal text-[10px] uppercase tracking-widest flex items-center gap-2">
                                 <Icon name="power" className="w-4 h-4" /> Keluar
                             </button>
                         )}
@@ -133,26 +160,23 @@
                         {view === 'student' && (
                             <div className="grid lg:grid-cols-12 gap-8 items-start">
                                 <div className="lg:col-span-7 bg-white p-8 md:p-10 rounded-xl border border-slate-200 shadow-sm fade-in">
-                                    <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
+                                    <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6 text-left">
                                         <div className="p-2.5 bg-slate-50 rounded text-slate-600"><Icon name="file-up" strokeWidth={2} /></div>
-                                        <div><h2 className="text-xl font-bold text-slate-900 leading-none">Portal Dokumen</h2><p className="text-sm text-slate-400 mt-1 font-normal italic">Unggah foto dokumen asli yang terbaca jelas</p></div>
+                                        <div><h2 className="text-xl font-bold text-slate-900 leading-none">Portal Berkas</h2><p className="text-sm text-slate-400 mt-1 font-normal italic">Unggah foto dokumen asli</p></div>
                                     </div>
 
                                     <form onSubmit={runAutomation} className="space-y-8">
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-left">
                                             <div className="md:col-span-3 space-y-2">
-                                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">Nama Lengkap Siswa</label>
+                                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nama Lengkap</label>
                                                 <input type="text" required className="w-full px-4 py-3 rounded border border-slate-200 bg-slate-50 focus:border-indigo-600 focus:bg-white outline-none text-base font-normal transition-all" value={studentData.nama} onChange={(e) => setStudentData({...studentData, nama: e.target.value})} />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">Kelas</label>
-                                                <div className="relative">
-                                                    <select required className="w-full px-4 py-3 rounded border border-slate-200 bg-slate-50 focus:border-indigo-600 outline-none appearance-none cursor-pointer text-base font-normal" value={studentData.kelas} onChange={(e) => setStudentData({...studentData, kelas: e.target.value})}>
-                                                        <option value="" disabled>-</option>
-                                                        {[1,2,3,4,5,6].map(k => <option key={k} value={k}>{k}</option>)}
-                                                    </select>
-                                                    <Icon name="chevron-down" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-4 h-4" />
-                                                </div>
+                                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kelas</label>
+                                                <select required className="w-full px-4 py-3 rounded border border-slate-200 bg-slate-50 focus:border-indigo-600 outline-none appearance-none cursor-pointer" value={studentData.kelas} onChange={(e) => setStudentData({...studentData, kelas: e.target.value})}>
+                                                    <option value="" disabled>-</option>
+                                                    {[1,2,3,4,5,6].map(k => <option key={k} value={k}>{k}</option>)}
+                                                </select>
                                             </div>
                                         </div>
 
@@ -162,22 +186,19 @@
                                             <UploadCard label="Rekening PIP" theme="amber" icon="landmark" file={studentData.pip} onChange={(e)=>setStudentData({...studentData, pip: e.target.files[0]})} />
                                         </div>
 
-                                        <button disabled={isProcessing} className={`w-full py-4 rounded font-bold text-white shadow-lg transition-all flex justify-center items-center gap-3 text-lg ${isProcessing ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99]'}`}>
+                                        <button disabled={isProcessing} className={`w-full py-4 rounded font-bold text-white shadow-lg transition-all flex justify-center items-center gap-3 text-lg ${isProcessing ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99]'}`}>
                                             {isProcessing ? <Icon name="loader-2" className="animate-spin" /> : <Icon name="send" />}
                                             {isProcessing ? 'MEMPROSES...' : 'KIRIM BERKAS SEKARANG'}
                                         </button>
                                     </form>
                                 </div>
                                 
-                                <div className="lg:col-span-5 panel-monitor rounded-xl p-8 text-white shadow-lg fade-in">
-                                    <div className="flex items-center gap-4 mb-10 border-b border-white/10 pb-5">
-                                        <div className="p-2.5 bg-white/10 rounded text-indigo-400"><Icon name="activity" /></div>
-                                        <div><h3 className="font-bold text-lg leading-none tracking-tight">STATUS TRANSMISI</h3><p className="text-[10px] uppercase font-normal text-white/50 mt-1 tracking-widest">Real-time Monitor</p></div>
-                                    </div>
+                                <div className="lg:col-span-5 panel-monitor rounded-xl p-8 text-white shadow-lg fade-in text-left">
+                                    <h3 className="font-bold text-lg mb-10 border-b border-white/10 pb-5 tracking-tight uppercase">Status Transmisi</h3>
                                     <div className="space-y-10 relative">
-                                        <StatusStep label="Cloud Upload" desc="Menyimpan Foto ke Drive" icon="cloud-upload" stepNum={1} currentStep={step} completed={step > 1} />
-                                        <StatusStep label="AI Vision" desc="Ekstraksi Teks Vision AI" icon="scan-eye" stepNum={2} currentStep={step} completed={step > 2} />
-                                        <StatusStep label="G-Sync" desc="Pencatatan Google Sheets" icon="database" stepNum={3} currentStep={step} completed={step >= 4} />
+                                        <StatusStep label="Cloud Upload" desc="Simpan ke Google Drive" icon="cloud-upload" stepNum={1} currentStep={step} completed={step > 1} />
+                                        <StatusStep label="AI Vision" desc="Pemindaian Vision AI" icon="scan-eye" stepNum={2} currentStep={step} completed={step > 2} />
+                                        <StatusStep label="G-Sync" desc="Sinkronisasi G-Sheets" icon="database" stepNum={3} currentStep={step} completed={step >= 4} />
                                     </div>
                                 </div>
                             </div>
@@ -186,30 +207,58 @@
                         {view === 'login' && (
                             <div className="max-w-md mx-auto bg-white p-10 rounded-xl shadow-lg border border-slate-200 text-center fade-in mt-10">
                                 <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600"><Icon name="lock" className="w-8 h-8" /></div>
-                                <h2 className="text-xl font-bold mb-1">Akses Admin</h2>
-                                <p className="text-sm text-slate-400 mb-8">Masukkan sandi khusus administrator</p>
+                                <h2 className="text-xl font-bold mb-8">Akses Admin</h2>
                                 <form onSubmit={handleLogin} className="space-y-6">
-                                    <input type="password" placeholder="Sandi" className="w-full p-4 rounded border bg-slate-50 text-center font-bold text-xl outline-none focus:border-indigo-600 transition-all shadow-inner" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} autoFocus />
+                                    <input type="password" placeholder="Sandi" className="w-full p-4 rounded border border-slate-200 bg-slate-50 text-center font-bold text-xl outline-none focus:border-indigo-600 transition-all shadow-inner" value={adminLoginPass} onChange={(e) => setAdminLoginPass(e.target.value)} autoFocus />
                                     <button className="w-full bg-slate-900 text-white py-4 rounded font-bold uppercase text-[11px] tracking-widest hover:bg-black transition-all">Verifikasi</button>
                                 </form>
                             </div>
                         )}
 
-                        {view === 'admin' && (
-                            <div className="max-w-4xl mx-auto bg-white p-10 rounded-xl shadow-lg border border-slate-200 fade-in">
-                                <div className="flex items-center gap-4 mb-8 pb-5 border-b border-slate-100"><Icon name="settings" className="w-8 h-8 text-slate-900" /><div><h2 className="text-xl font-bold">Konfigurasi</h2><p className="text-xs text-slate-400 tracking-widest mt-1">Backend Connection</p></div></div>
-                                <div className="space-y-8">
-                                    <div className="space-y-2">
-                                        <label className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">GAS URL (Exec)</label>
-                                        <input type="text" className="w-full p-4 rounded border bg-slate-50 text-sm text-indigo-600 outline-none focus:border-indigo-600 shadow-inner" value={config.gasUrl} onChange={(e) => setConfig({...config, gasUrl: e.target.value})} />
+                        {view === 'admin' && isAuthenticated && (
+                            <div className="max-w-4xl mx-auto space-y-8 fade-in text-left">
+                                <div className="bg-white p-10 rounded-xl shadow-lg border border-slate-200">
+                                    <div className="flex items-center gap-4 mb-8 pb-5 border-b border-slate-100">
+                                        <Icon name="settings" className="w-8 h-8 text-slate-900" />
+                                        <h2 className="text-xl font-bold">Konfigurasi Sistem</h2>
                                     </div>
-                                    <button onClick={() => { localStorage.setItem('eduflow_gas_config', JSON.stringify(config)); showNotify('success', 'Berhasil disimpan.'); setView('student'); }} className="w-full bg-slate-900 text-white py-4 rounded font-bold uppercase text-[11px] tracking-widest hover:bg-black transition-all">Simpan</button>
+                                    <div className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">GAS URL (Exec)</label>
+                                            <input type="text" className="w-full p-4 rounded border bg-slate-50 text-sm text-indigo-600 outline-none focus:border-indigo-600" value={config.gasUrl} onChange={(e) => setConfig({...config, gasUrl: e.target.value})} />
+                                        </div>
+                                        <button onClick={() => { localStorage.setItem('eduflow_config_v2025_final', JSON.stringify(config)); showNotify('success', 'Tersimpan.'); }} className="bg-slate-900 text-white px-8 py-3 rounded font-bold text-xs uppercase tracking-widest hover:bg-black">Simpan GAS URL</button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-10 rounded-xl shadow-lg border border-slate-200">
+                                    <div className="flex items-center gap-4 mb-8 pb-5 border-b border-slate-100 text-red-600">
+                                        <Icon name="shield-check" className="w-8 h-8" />
+                                        <h2 className="text-xl font-bold">Keamanan & Akun</h2>
+                                    </div>
+                                    <form onSubmit={handleChangePassword} className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-bold text-slate-400 uppercase">Sandi Lama</label>
+                                                <input type="password" required className="w-full p-3 rounded border bg-slate-50" value={passChange.old} onChange={(e)=>setPassChange({...passChange, old: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-bold text-slate-400 uppercase">Sandi Baru</label>
+                                                <input type="password" required className="w-full p-3 rounded border bg-slate-50" value={passChange.new} onChange={(e)=>setPassChange({...passChange, new: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-bold text-slate-400 uppercase">Konfirmasi</label>
+                                                <input type="password" required className="w-full p-3 rounded border bg-slate-50" value={passChange.confirm} onChange={(e)=>setPassChange({...passChange, confirm: e.target.value})} />
+                                            </div>
+                                        </div>
+                                        <button className="bg-red-600 text-white px-8 py-3 rounded font-bold text-xs uppercase tracking-widest hover:bg-red-700">Perbarui Kata Sandi</button>
+                                    </form>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    <footer className="py-10 px-12 border-t border-slate-200 bg-white flex flex-col md:flex-row justify-between items-center gap-6 mt-auto">
+                    <footer className="py-10 px-12 border-t border-slate-200 bg-white flex flex-col md:flex-row justify-between items-center gap-6 mt-auto text-left">
                         <p style={{ fontWeight: '400' }} className="text-slate-400 text-[10px] uppercase tracking-[0.5em]">EDUFLOW by INISIAL TH</p>
                         <button onClick={() => setView(view === 'student' ? 'login' : 'student')} className="bg-red-600 text-white px-6 py-2.5 rounded text-[10px] font-bold uppercase tracking-[0.2em] shadow hover:bg-red-700 transition-all active:scale-95">ADMIN</button>
                     </footer>
@@ -241,12 +290,12 @@
             return (
                 <div className="flex items-start gap-6 relative">
                     {stepNum < 3 && <div className={`absolute left-[27px] top-[52px] bottom-[-28px] w-px bg-white/10 ${completed ? 'bg-emerald-500' : ''}`}></div>}
-                    <div className={`w-14 h-14 rounded flex items-center justify-center flex-shrink-0 z-10 shadow-lg transition-all ${completed ? 'bg-emerald-500 scale-105' : isCurrent ? 'bg-indigo-600 ring-[6px] ring-indigo-600/20' : 'bg-slate-800'}`}>
+                    <div className={`w-14 h-14 rounded flex items-center justify-center flex-shrink-0 z-10 shadow-lg transition-all ${completed ? 'bg-emerald-500 scale-105' : isCurrent ? 'bg-indigo-600 ring-[6px] ring-indigo-600/20' : 'bg-slate-800 border border-white/5'}`}>
                         {completed ? <Icon name="check" className="text-white w-6 h-6" strokeWidth={3} /> : <Icon name={icon} className="text-white w-6 h-6" />}
                     </div>
                     <div className="flex flex-col justify-center h-14">
                         <span className={`text-lg font-bold tracking-tight leading-none ${completed ? 'text-emerald-400' : 'text-white'}`}>{label}</span>
-                        <span className={`text-[10px] font-normal uppercase tracking-widest mt-2 leading-none ${completed ? 'text-emerald-400/80' : 'text-white'}`}>{desc}</span>
+                        <span className={`text-[11px] font-normal uppercase tracking-widest mt-2 leading-none ${completed ? 'text-emerald-400/80' : 'text-white'}`}>{desc}</span>
                     </div>
                 </div>
             );
