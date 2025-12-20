@@ -7,7 +7,7 @@ import {
 
 /**
  * EduFlow Dasis - Smart Engine (Simplified Shared Edition)
- * Versi: 2025.7.0 (No Admin - Hardcoded GAS)
+ * Versi: 2025.7.1 (Optional PIP & New Branding)
  * Dibuat oleh: INISIAL TH
  */
 
@@ -37,36 +37,36 @@ const App = () => {
   const runAutomation = async (e) => {
     e.preventDefault();
     
-    // Proteksi jika URL belum diisi di kode
     if (MASTER_GAS_URL.includes("MASUKKAN_URL_ANDA")) {
-      return showNotify('error', 'Sistem belum dikonfigurasi oleh pengembang (URL GAS Kosong).');
+      return showNotify('error', 'Sistem belum dikonfigurasi (URL GAS Kosong).');
     }
 
     if (!studentData.nama || !studentData.kelas) return showNotify('error', 'Nama Lengkap dan Kelas wajib diisi.');
-    if (!studentData.kk || !studentData.akte || !studentData.pip) {
-      return showNotify('error', 'Mohon lengkapi ketiga foto dokumen asli.');
+    
+    // Validasi: PIP sekarang OPSIONAL. KK dan Akte tetap WAJIB.
+    if (!studentData.kk || !studentData.akte) {
+      return showNotify('error', 'Mohon lengkapi minimal foto KK dan Akte Kelahiran.');
     }
 
     setIsProcessing(true);
-    setStep(1); // Mulai Upload
+    setStep(1); 
     
     try {
-      // Konversi dokumen ke Base64 secara berurutan
+      // Konversi dokumen ke Base64 secara berurutan (PIP bisa null)
       const b64KK = await convertToBase64(studentData.kk);
       const b64Akte = await convertToBase64(studentData.akte);
       const b64PIP = await convertToBase64(studentData.pip);
 
-      setStep(2); // Mulai Proses AI
+      setStep(2); 
       
       const payload = {
         nama_siswa: studentData.nama,
         kelas: studentData.kelas,
         foto_kk: b64KK,
         foto_akte: b64Akte,
-        foto_pip: b64PIP
+        foto_pip: b64PIP // Akan dikirim sebagai null jika tidak ada
       };
 
-      // Kirim data ke Google Apps Script
       const response = await fetch(MASTER_GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -75,11 +75,11 @@ const App = () => {
 
       if (!response.ok) throw new Error("Gagal terhubung ke server Google.");
 
-      setStep(3); // Mulai G-Sync
+      setStep(3); 
       
       setTimeout(() => {
-        setStep(4); // Selesai
-        showNotify('success', `Terima kasih, ${studentData.nama}. Data Anda telah berhasil diarsipkan.`);
+        setStep(4);
+        showNotify('success', `Data ${studentData.nama} berhasil diarsipkan.`);
         setStudentData({ nama: '', kelas: '', kk: null, akte: null, pip: null });
         setTimeout(() => { setStep(0); setIsProcessing(false); }, 4000);
       }, 1000);
@@ -94,7 +94,6 @@ const App = () => {
   return (
     <div style={{ fontFamily: 'Arial, sans-serif' }} className="min-h-screen bg-[#f8fafc] text-[#334155] flex flex-col antialiased text-left selection:bg-indigo-100">
       
-      {/* Notifikasi Sistem */}
       {notification && (
         <div className={`fixed top-8 right-8 z-[100] p-4 rounded-lg shadow-2xl flex items-center gap-3 border backdrop-blur-md animate-in fade-in slide-in-from-top-4 ${
           notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
@@ -104,7 +103,6 @@ const App = () => {
         </div>
       )}
 
-      {/* Navigasi Header */}
       <nav className="bg-white/95 backdrop-blur-md border-b border-slate-200 px-8 py-5 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-lg">
@@ -112,19 +110,18 @@ const App = () => {
           </div>
           <div>
             <h1 className="font-bold text-lg tracking-tight text-slate-900 leading-none">EDUFLOW DASIS</h1>
-            <p className="text-[10px] font-normal text-indigo-600 mt-1 tracking-widest uppercase leading-none">Pusat Arsip Digital v2.5</p>
+            <p className="text-[10px] font-normal text-indigo-600 mt-1 tracking-widest uppercase leading-none">Smart Engine by INISIAL TH</p>
           </div>
         </div>
         <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-          Sistem Aktif
+          Server Aktif
         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto p-6 md:p-12 flex-grow w-full">
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           
-          {/* Formulir Siswa */}
           <div className="lg:col-span-7 bg-white p-8 md:p-10 rounded-xl border border-slate-200 shadow-sm animate-in fade-in duration-500">
             <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
               <div className="p-3 bg-slate-50 rounded-lg text-slate-700">
@@ -132,7 +129,7 @@ const App = () => {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900 leading-none">Unggah Berkas Digital</h2>
-                <p className="text-sm text-slate-400 mt-1.5 font-normal italic">Pastikan dokumen adalah foto asli yang terbaca jelas</p>
+                <p className="text-sm text-slate-400 mt-1.5 font-normal italic">Isi data dan lampirkan foto dokumen asli</p>
               </div>
             </div>
 
@@ -146,7 +143,7 @@ const App = () => {
                     className="w-full px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 focus:border-indigo-600 focus:bg-white transition-all outline-none text-base font-normal" 
                     value={studentData.nama} 
                     onChange={(e) => setStudentData({...studentData, nama: e.target.value})} 
-                    placeholder="Sesuai Ijazah..."
+                    placeholder="Masukkan nama lengkap..."
                   />
                 </div>
                 <div className="space-y-2">
@@ -172,6 +169,7 @@ const App = () => {
                   theme="blue" 
                   icon={<Users size={24} />} 
                   file={studentData.kk} 
+                  required={true}
                   onChange={(e) => setStudentData({...studentData, kk: e.target.files[0]})} 
                 />
                 <UploadCard 
@@ -179,6 +177,7 @@ const App = () => {
                   theme="emerald" 
                   icon={<FileBadge size={24} />} 
                   file={studentData.akte} 
+                  required={true}
                   onChange={(e) => setStudentData({...studentData, akte: e.target.files[0]})} 
                 />
                 <UploadCard 
@@ -186,6 +185,7 @@ const App = () => {
                   theme="amber" 
                   icon={<Landmark size={24} />} 
                   file={studentData.pip} 
+                  required={false}
                   onChange={(e) => setStudentData({...studentData, pip: e.target.files[0]})} 
                 />
               </div>
@@ -195,12 +195,11 @@ const App = () => {
                 className={`w-full py-4 rounded-lg font-bold text-white shadow-xl transition-all flex justify-center items-center gap-3 text-lg ${isProcessing ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99]'}`}
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                {isProcessing ? 'SEDANG MENYIMPAN...' : 'KIRIM BERKAS SEKARANG'}
+                {isProcessing ? 'SEDANG MEMPROSES...' : 'KIRIM BERKAS SEKARANG'}
               </button>
             </form>
           </div>
           
-          {/* Monitor Status Transmisi */}
           <div className="lg:col-span-5 bg-[#0f172a] rounded-xl p-8 md:p-10 text-white shadow-xl">
              <div className="flex items-center gap-4 mb-10 border-b border-white/10 pb-5">
                 <div className="p-2.5 bg-white/10 rounded-lg text-indigo-400">
@@ -213,24 +212,9 @@ const App = () => {
              </div>
              
              <div className="space-y-10 relative">
-                <StatusStep 
-                  label="Cloud Upload" 
-                  desc="Drive Storage Sync" 
-                  icon={<CloudUpload size={24} />} 
-                  stepNum={1} currentStep={step} completed={step > 1} 
-                />
-                <StatusStep 
-                  label="AI Vision" 
-                  desc="OCR Text Extraction" 
-                  icon={<ScanEye size={24} />} 
-                  stepNum={2} currentStep={step} completed={step > 2} 
-                />
-                <StatusStep 
-                  label="G-Sync" 
-                  desc="Sheet Entry Logging" 
-                  icon={<Database size={24} />} 
-                  stepNum={3} currentStep={step} completed={step >= 4} 
-                />
+                <StatusStep label="Cloud Upload" desc="Drive Storage Sync" icon={<CloudUpload size={24} />} stepNum={1} currentStep={step} completed={step > 1} />
+                <StatusStep label="AI Vision" desc="OCR Text Extraction" icon={<ScanEye size={24} />} stepNum={2} currentStep={step} completed={step > 2} />
+                <StatusStep label="G-Sync" desc="Sheet Entry Logging" icon={<Database size={24} />} stepNum={3} currentStep={step} completed={step >= 4} />
              </div>
 
              <div className="mt-12 p-4 bg-white/5 border border-white/10 rounded-lg text-left">
@@ -245,15 +229,15 @@ const App = () => {
       </main>
 
       <footer className="py-10 px-12 border-t border-slate-200 bg-white flex justify-center items-center mt-auto">
-        <p className="text-slate-400 text-[10px] uppercase tracking-[0.5em] leading-none font-normal">
-          EDUFLOW by INISIAL TH &copy; 2025
+        <p className="text-black text-[10px] uppercase tracking-[0.5em] leading-none font-bold">
+          EDUFLOW DASIS-BY INISIAL TH
         </p>
       </footer>
     </div>
   );
 };
 
-const UploadCard = ({ label, theme, icon, file, onChange }) => {
+const UploadCard = ({ label, theme, icon, file, onChange, required }) => {
   const iconColors = { blue: 'text-indigo-600', emerald: 'text-emerald-600', amber: 'text-amber-600', default: 'text-slate-400' };
   const border = file ? 'border-indigo-600 bg-indigo-50/50 shadow-inner' : 'border-slate-200 bg-slate-50 hover:border-indigo-300';
   return (
@@ -261,7 +245,9 @@ const UploadCard = ({ label, theme, icon, file, onChange }) => {
       <div className={`p-2.5 rounded-full mb-3 transition-all ${file ? 'bg-white shadow-sm scale-110' : 'bg-white'}`}>
         <div className={file ? iconColors[theme] : iconColors.default}>{icon}</div>
       </div>
-      <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 leading-none ${file ? 'text-slate-900' : 'text-slate-500'}`}>{label}</p>
+      <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 leading-none ${file ? 'text-slate-900' : 'text-slate-500'}`}>
+        {label} {!required && <span className="text-[8px] normal-case font-normal">(Opsional)</span>}
+      </p>
       <p className="text-[10px] text-slate-400 truncate w-full px-2 italic font-normal leading-tight">{file ? file.name : "Pilih Foto"}</p>
       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={onChange} />
     </div>
