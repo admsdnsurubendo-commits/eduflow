@@ -1,7 +1,7 @@
 {
   "name": "eduflow-dasis-smart-engine",
-  "version": "3.0.0",
-  "description": "Ready-to-Use Admin-less Smart Engine - INISIAL TH",
+  "version": "3.1.0",
+  "description": "Smart Engine by INISIAL TH - Optional PIP Upload & Updated Branding - INISIAL TH",
   "main": "eduflow_dasis_engine.jsx",
   "dependencies": {
     "react": "^18.2.0",
