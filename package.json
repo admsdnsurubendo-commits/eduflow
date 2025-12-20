@@ -1,7 +1,7 @@
 {
-  "name": "eduflow-dasis-gas-bridge",
-  "version": "2.0.0",
-  "description": "Mesin Otomasi 3 Dokumen via Google Apps Script 2025 - INISIAL TH",
+  "name": "eduflow-dasis-smart-engine",
+  "version": "2.2.0",
+  "description": "Smart Engine v2.5 - Professional Edition - INISIAL TH",
   "main": "eduflow_dasis_engine.jsx",
   "dependencies": {
     "react": "^18.2.0",
